@@ -104,8 +104,8 @@ int kprobe__kmem_cache_alloc(struct pt_regs *ctx, struct kmem_cache *cachep)
 """
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # initialize BPF
 b = BPF(text=bpf_text)

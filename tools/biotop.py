@@ -224,7 +224,7 @@ disklookup = {}
 with open(diskstats) as stats:
     for line in stats:
         a = line.split()
-        disklookup[a[0] + "," + a[1]] = a[2]
+        disklookup[f"{a[0]},{a[1]}"] = a[2]
 
 # output
 exiting = 0
@@ -251,12 +251,8 @@ while 1:
                                 key=lambda counts: counts[1].bytes)):
 
         # lookup disk
-        disk = str(k.major) + "," + str(k.minor)
-        if disk in disklookup:
-            diskname = disklookup[disk]
-        else:
-            diskname = "?"
-
+        disk = f"{str(k.major)},{str(k.minor)}"
+        diskname = disklookup.get(disk, "?")
         # print line
         avg_ms = (float(v.us) / 1000) / v.io
         print("%-7d %-16s %1s %-3d %-3d %-8s %5s %7s %6.2f" % (k.pid,

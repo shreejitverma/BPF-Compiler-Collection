@@ -385,8 +385,7 @@ KFUNC_PROBE(mutex_lock_nested, void *lock)
 
 """
 
-is_support_kfunc = BPF.support_kfunc()
-if is_support_kfunc:
+if is_support_kfunc := BPF.support_kfunc():
     if BPF.get_kprobe_functions(b"mutex_lock_nested"):
         program += program_kfunc_nested
     else:
@@ -399,11 +398,11 @@ def sort_list(maxs, totals, counts):
         return maxs;
 
     for field in args.sort.split(','):
-        if (field == "acq_max" or field == "hld_max"):
+        if field in ["acq_max", "hld_max"]:
             return maxs
-        if (field == "acq_total" or field == "hld_total"):
+        if field in ["acq_total", "hld_total"]:
             return totals
-        if (field == "acq_count" or field == "hld_count"):
+        if field in ["acq_count", "hld_count"]:
             return counts
 
     print("Wrong sort argument: %s", args.sort)

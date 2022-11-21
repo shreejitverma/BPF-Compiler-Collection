@@ -32,7 +32,7 @@ def signal_ignore(signal, frame):
 # Function to gather data from /proc/meminfo
 # return dictionary for quicker lookup of both values
 def get_meminfo():
-    result = dict()
+    result = {}
 
     for line in open('/proc/meminfo'):
         k = line.split(':', 3)
@@ -89,8 +89,8 @@ int do_count(struct pt_regs *ctx) {
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # load BPF program
 b = BPF(text=bpf_text)
@@ -145,10 +145,8 @@ while 1:
     # misses = total of add to lru because of read misses
     total = mpa - mbd
     misses = apcl - apd
-    if misses < 0:
-        misses = 0
-    if total < 0:
-        total = 0
+    misses = max(misses, 0)
+    total = max(total, 0)
     hits = total - misses
 
     # If hits are < 0, then its possible misses are overestimated

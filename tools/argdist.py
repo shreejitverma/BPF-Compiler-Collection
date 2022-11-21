@@ -39,7 +39,7 @@ class Probe(object):
                         # supported right now.
                         index = param.rfind('*')
                         index = index if index != -1 else param.rfind(' ')
-                        param_type = param[0:index + 1].strip()
+                        param_type = param[:index + 1].strip()
                         param_name = param[index + 1:].strip()
                         self.param_types[param_name] = param_type
                         # Maintain list of user params. Then later decide to
@@ -48,7 +48,7 @@ class Probe(object):
                                 self.probe_user_list.add(param_name)
 
         def _generate_entry(self):
-                self.entry_probe_func = self.probe_func_name + "_entry"
+                self.entry_probe_func = f"{self.probe_func_name}_entry"
                 text = """
 int PROBENAME(struct pt_regs *ctx SIGNATURE)
 {
@@ -62,8 +62,10 @@ int PROBENAME(struct pt_regs *ctx SIGNATURE)
 }
 """
                 text = text.replace("PROBENAME", self.entry_probe_func)
-                text = text.replace("SIGNATURE",
-                     "" if len(self.signature) == 0 else ", " + self.signature)
+                text = text.replace(
+                    "SIGNATURE",
+                    "" if len(self.signature) == 0 else f", {self.signature}",
+                )
                 text = text.replace("PID_FILTER", self._generate_pid_filter())
                 text = text.replace("TID_FILTER", self._generate_tid_filter())
                 collect = ""
@@ -76,9 +78,8 @@ u64 __time = bpf_ktime_get_ns();
                         """ % param_hash
                         else:
                                 collect += "%s.update(&__pid, &%s);\n" % \
-                                           (param_hash, pname)
-                text = text.replace("COLLECT", collect)
-                return text
+                                                   (param_hash, pname)
+                return text.replace("COLLECT", collect)
 
         def _generate_entry_probe(self):
                 # Any $entry(name) expressions result in saving that argument
@@ -91,22 +92,17 @@ u64 __time = bpf_ktime_get_ns();
                 for arg in re.finditer(regex, self.filter):
                         self.args_to_probe.add(arg.group(1))
                 if any(map(lambda expr: "$latency" in expr, self.exprs)) or \
-                   "$latency" in self.filter:
+                           "$latency" in self.filter:
                         self.args_to_probe.add("__latency")
                         self.param_types["__latency"] = "u64"    # nanoseconds
                 for pname in self.args_to_probe:
                         if pname not in self.param_types:
-                                raise ValueError("$entry(%s): no such param" %
-                                                 arg)
+                                raise ValueError(f"$entry({arg}): no such param")
 
-                self.hashname_prefix = "%s_param_" % self.probe_hash_name
-                text = ""
-                for pname in self.args_to_probe:
-                        # Each argument is stored in a separate hash that is
-                        # keyed by pid.
-                        text += "BPF_HASH(%s, u32, %s);\n" % \
-                             (self.hashname_prefix + pname,
-                              self.param_types[pname])
+                self.hashname_prefix = f"{self.probe_hash_name}_param_"
+                text = "".join("BPF_HASH(%s, u32, %s);\n" %
+                               (self.hashname_prefix + pname, self.param_types[pname])
+                               for pname in self.args_to_probe)
                 text += self._generate_entry()
                 return text
 
@@ -118,9 +114,9 @@ u64 __time = bpf_ktime_get_ns();
                 text = ""
                 self.param_val_names = {}
                 for pname in self.args_to_probe:
-                        val_name = "__%s_val" % pname
+                        val_name = f"__{pname}_val"
                         text += "%s *%s = %s.lookup(&__pid);\n" % \
-                                (self.param_types[pname], val_name,
+                                        (self.param_types[pname], val_name,
                                  self.hashname_prefix + pname)
                         text += "if (%s == 0) { return 0 ; }\n" % val_name
                         self.param_val_names[pname] = val_name
@@ -130,11 +126,11 @@ u64 __time = bpf_ktime_get_ns();
                 for pname, vname in self.param_val_names.items():
                         if pname == "__latency":
                                 entry_expr = "$latency"
-                                val_expr = "(bpf_ktime_get_ns() - *%s)" % vname
+                                val_expr = f"(bpf_ktime_get_ns() - *{vname})"
                         else:
-                                entry_expr = "$entry(%s)" % pname
-                                val_expr = "(*%s)" % vname
-                        for i in range(0, len(self.exprs)):
+                                entry_expr = f"$entry({pname})"
+                                val_expr = f"(*{vname})"
+                        for i in range(len(self.exprs)):
                                 self.exprs[i] = self.exprs[i].replace(
                                                 entry_expr, val_expr)
                         self.filter = self.filter.replace(entry_expr,
@@ -196,7 +192,7 @@ u64 __time = bpf_ktime_get_ns();
 
                 spec_and_label = specifier.split('#')
                 self.label = spec_and_label[1] \
-                             if len(spec_and_label) == 2 else None
+                                     if len(spec_and_label) == 2 else None
 
                 parts = spec_and_label[0].strip().split(':')
                 self.type = type    # hist or freq
@@ -230,12 +226,10 @@ u64 __time = bpf_ktime_get_ns();
                         if self.type == "hist" and len(self.expr_types) > 1:
                                 self._bail("histograms can only have 1 expr")
                 else:
-                        if not self.probe_type == "r" and self.type == "hist":
+                        if self.probe_type != "r" and self.type == "hist":
                                 self._bail("histograms must have expr")
-                        self.expr_types = \
-                          ["u64" if not self.probe_type == "r" else "int"]
-                        self.exprs = \
-                          ["1" if not self.probe_type == "r" else "$retval"]
+                        self.expr_types = ["u64" if self.probe_type != "r" else "int"]
+                        self.exprs = ["1" if self.probe_type != "r" else "$retval"]
                 self.filter = "" if len(parts) != 6 else parts[5]
                 self._substitute_exprs()
 
@@ -244,8 +238,9 @@ u64 __time = bpf_ktime_get_ns();
                 def check(expr):
                         keywords = ["$entry", "$latency"]
                         return any(map(lambda kw: kw in expr, keywords))
+
                 self.entry_probe_required = self.probe_type == "r" and \
-                        (any(map(check, self.exprs)) or check(self.filter))
+                                (any(map(check, self.exprs)) or check(self.filter))
 
                 self.probe_func_name = self._make_valid_identifier(
                         "%s_probe%d" %
@@ -271,12 +266,13 @@ u64 __time = bpf_ktime_get_ns();
                         self.streq_functions = rdict["streq_functions"]
                         Probe.streq_index = rdict["probeid"]
                         return expr.replace("$retval", "PT_REGS_RC(ctx)")
-                for i in range(0, len(self.exprs)):
+
+                for i in range(len(self.exprs)):
                         self.exprs[i] = repl(self.exprs[i])
                 self.filter = repl(self.filter)
 
         def _is_string(self, expr_type):
-                return expr_type == "char*" or expr_type == "char *"
+                return expr_type in ["char*", "char *"]
 
         def _generate_hash_field(self, i):
                 if self._is_string(self.expr_types[i]):
@@ -286,63 +282,52 @@ u64 __time = bpf_ktime_get_ns();
 
         def _generate_usdt_arg_assignment(self, i):
                 expr = self.exprs[i]
-                if self.probe_type == "u" and expr[0:3] == "arg":
-                        arg_index = int(expr[3])
-                        arg_ctype = self.usdt_ctx.get_probe_arg_ctype(
-                                self.function, arg_index - 1)
-                        return ("        %s %s = 0;\n" +
-                                "        bpf_usdt_readarg(%s, ctx, &%s);\n") \
-                                % (arg_ctype, expr, expr[3], expr)
-                else:
+                if self.probe_type != "u" or expr[:3] != "arg":
                         return ""
+                arg_ctype = self.usdt_ctx.get_probe_arg_ctype(self.function, int(expr[3]) - 1)
+                return ("        %s %s = 0;\n" +
+                        "        bpf_usdt_readarg(%s, ctx, &%s);\n") \
+                                % (arg_ctype, expr, expr[3], expr)
 
         def _generate_field_assignment(self, i):
                 text = self._generate_usdt_arg_assignment(i)
-                if self._is_string(self.expr_types[i]):
-                        if self.is_user or \
-                            self.exprs[i] in self.probe_user_list:
-                                probe_readfunc = "bpf_probe_read_user"
-                        else:
-                                probe_readfunc = "bpf_probe_read_kernel"
-                        return (text + "        %s(&__key.v%d.s," +
-                                " sizeof(__key.v%d.s), (void *)%s);\n") % \
-                                (probe_readfunc, i, i, self.exprs[i])
-                else:
+                if not self._is_string(self.expr_types[i]):
                         return text + "        __key.v%d = %s;\n" % \
-                               (i, self.exprs[i])
+                                       (i, self.exprs[i])
+                probe_readfunc = ("bpf_probe_read_user" if self.is_user
+                                  or self.exprs[i] in self.probe_user_list else
+                                  "bpf_probe_read_kernel")
+                return (f"{text}        %s(&__key.v%d.s," +
+                        " sizeof(__key.v%d.s), (void *)%s);\n") % (probe_readfunc, i,
+                                                                   i, self.exprs[i])
 
         def _generate_hash_decl(self):
                 if self.type == "hist":
-                        return "BPF_HISTOGRAM(%s, %s);" % \
-                               (self.probe_hash_name, self.expr_types[0])
-                else:
-                        text = "struct %s_key_t {\n" % self.probe_hash_name
-                        for i in range(0, len(self.expr_types)):
-                                text += self._generate_hash_field(i)
-                        text += "};\n"
-                        text += "BPF_HASH(%s, struct %s_key_t, u64);\n" % \
+                        return f"BPF_HISTOGRAM({self.probe_hash_name}, {self.expr_types[0]});"
+                text = "struct %s_key_t {\n" % self.probe_hash_name
+                for i in range(len(self.expr_types)):
+                        text += self._generate_hash_field(i)
+                text += "};\n"
+                text += "BPF_HASH(%s, struct %s_key_t, u64);\n" % \
                                 (self.probe_hash_name, self.probe_hash_name)
-                        return text
+                return text
 
         def _generate_key_assignment(self):
                 if self.type == "hist":
                         return self._generate_usdt_arg_assignment(0) + \
-                               ("%s __key = %s;\n" %
+                                       ("%s __key = %s;\n" %
                                 (self.expr_types[0], self.exprs[0]))
-                else:
-                        text = "struct %s_key_t __key = {};\n" % \
+                text = "struct %s_key_t __key = {};\n" % \
                                 self.probe_hash_name
-                        for i in range(0, len(self.exprs)):
-                                text += self._generate_field_assignment(i)
-                        return text
+                for i in range(len(self.exprs)):
+                        text += self._generate_field_assignment(i)
+                return text
 
         def _generate_hash_update(self):
                 if self.type == "hist":
-                        return "%s.atomic_increment(bpf_log2l(__key));" % \
-                                self.probe_hash_name
+                        return f"{self.probe_hash_name}.atomic_increment(bpf_log2l(__key));"
                 else:
-                        return "%s.atomic_increment(__key);" % \
-                                self.probe_hash_name
+                        return f"{self.probe_hash_name}.atomic_increment(__key);"
 
         def _generate_pid_filter(self):
                 # Kernel probes need to explicitly filter pid, because the
@@ -360,13 +345,13 @@ u64 __time = bpf_ktime_get_ns();
 
         def generate_text(self):
                 program = ""
-                probe_text = """
+                probe_text = (
+                    ("""
 DATA_DECL
-                """ + (
-                    "TRACEPOINT_PROBE(%s, %s)" %
-                    (self.tp_category, self.tp_event)
-                    if self.probe_type == "t"
-                    else "int PROBENAME(struct pt_regs *ctx SIGNATURE)") + """
+                """ +
+                     (f"TRACEPOINT_PROBE({self.tp_category}, {self.tp_event})"
+                      if self.probe_type == "t" else
+                      "int PROBENAME(struct pt_regs *ctx SIGNATURE)")) + """
 {
         u64 __pid_tgid = bpf_get_current_pid_tgid();
         u32 __pid      = __pid_tgid;        // lower 32 bits
@@ -379,7 +364,7 @@ DATA_DECL
         COLLECT
         return 0;
 }
-"""
+""")
                 prefix = ""
                 signature = ""
 
@@ -395,7 +380,7 @@ DATA_DECL
                 if self.probe_type == "p" and len(self.signature) > 0:
                         # Only entry uprobes/kprobes can have user-specified
                         # signatures. Other probes force it to ().
-                        signature = ", " + self.signature
+                        signature = f", {self.signature}"
 
                 program += probe_text.replace("PROBENAME",
                                               self.probe_func_name)
@@ -422,7 +407,7 @@ DATA_DECL
                 if libpath is None:
                         libpath = BPF.find_exe(self.library)
                 if libpath is None or len(libpath) == 0:
-                        self._bail("unable to find library %s" % self.library)
+                        self._bail(f"unable to find library {self.library}")
 
                 if self.probe_type == "r":
                         self.bpf.attach_uretprobe(name=libpath,
@@ -459,9 +444,7 @@ DATA_DECL
         def _v2s(self, v):
                 # Most fields can be converted with plain str(), but strings
                 # are wrapped in a __string_t which has an .s field
-                if "__string_t" in type(v).__name__:
-                        return str(v.s)
-                return str(v)
+                return str(v.s) if "__string_t" in type(v).__name__ else str(v)
 
         def _display_expr(self, i):
                 # Replace ugly latency calculation with $latency
@@ -477,18 +460,14 @@ DATA_DECL
 
         def _display_key(self, key):
                 if self.is_default_expr:
-                        if not self.probe_type == "r":
-                                return "total calls"
-                        else:
-                                return "retval = %s" % str(key.v0)
-                else:
+                        return f"retval = {str(key.v0)}" if self.probe_type == "r" else "total calls"
                         # The key object has v0, ..., vk fields containing
                         # the values of the expressions from self.exprs
-                        def str_i(i):
-                                key_i = self._v2s(getattr(key, "v%d" % i))
-                                return "%s = %s" % \
-                                        (self._display_expr(i), key_i)
-                        return ", ".join(map(str_i, range(0, len(self.exprs))))
+                def str_i(i):
+                        key_i = self._v2s(getattr(key, "v%d" % i))
+                        return f"{self._display_expr(i)} = {key_i}"
+
+                return ", ".join(map(str_i, range(len(self.exprs))))
 
         def display(self, top):
                 data = self.bpf.get_table(self.probe_hash_name)
@@ -502,18 +481,16 @@ DATA_DECL
                                 # Print some nice values if the user didn't
                                 # specify an expression to probe
                                 if self.is_default_expr:
-                                        if not self.probe_type == "r":
-                                                key_str = "total calls"
-                                        else:
-                                                key_str = "retval = %s" % \
-                                                          self._v2s(key.v0)
+                                        key_str = (f"retval = {self._v2s(key.v0)}"
+                                                   if self.probe_type == "r" else
+                                                   "total calls")
                                 else:
                                         key_str = self._display_key(key)
                                 print("\t%-10s %s" %
                                       (str(value.value), key_str))
                 elif self.type == "hist":
-                        label = self.label or (self._display_expr(0)
-                                if not self.is_default_expr else "retval")
+                        label = self.label or ("retval" if self.is_default_expr else
+                                               self._display_expr(0))
                         data.print_log2_hist(val_type=label)
                 if not self.cumulative:
                         data.clear()
@@ -652,12 +629,14 @@ argdist -I 'kernel/sched/sched.h' \\
                 self.usdt_ctx = None
 
         def _create_probes(self):
-                self.probes = []
-                for specifier in (self.args.countspecifier or []):
-                        self.probes.append(Probe(self, "freq", specifier))
-                for histspecifier in (self.args.histspecifier or []):
-                        self.probes.append(Probe(self, "hist", histspecifier))
-                if len(self.probes) == 0:
+                self.probes = [
+                    Probe(self, "freq", specifier)
+                    for specifier in (self.args.countspecifier or [])
+                ]
+                self.probes.extend(
+                    Probe(self, "hist", histspecifier)
+                    for histspecifier in (self.args.histspecifier or []))
+                if not self.probes:
                         print("at least one specifier is required")
                         exit(1)
 
@@ -692,8 +671,8 @@ struct __string_t { char s[%d]; };
                 for probe in self.probes:
                         probe.attach(self.bpf)
                 if self.args.verbose:
-                        print("open uprobes: %s" % list(self.bpf.uprobe_fds.keys()))
-                        print("open kprobes: %s" % list(self.bpf.kprobe_fds.keys()))
+                        print(f"open uprobes: {list(self.bpf.uprobe_fds.keys())}")
+                        print(f"open kprobes: {list(self.bpf.kprobe_fds.keys())}")
 
         def _main_loop(self):
                 count_so_far = 0
@@ -704,15 +683,15 @@ struct __string_t { char s[%d]; };
                                 seconds += self.args.interval
                         except KeyboardInterrupt:
                                 exit()
-                        print("[%s]" % strftime("%H:%M:%S"))
+                        print(f'[{strftime("%H:%M:%S")}]')
                         for probe in self.probes:
                                 probe.display(self.args.top)
                         count_so_far += 1
                         if self.args.count is not None and \
-                           count_so_far >= self.args.count:
+                                   count_so_far >= self.args.count:
                                 exit()
                         if self.args.duration and \
-                           seconds >= self.args.duration:
+                                   seconds >= self.args.duration:
                                 exit()
 
         def run(self):

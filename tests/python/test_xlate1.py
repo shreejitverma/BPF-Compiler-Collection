@@ -12,9 +12,7 @@ from time import sleep
 from unittest import main, TestCase
 
 arg1 = sys.argv.pop(1).encode()
-arg2 = "".encode()
-if len(sys.argv) > 1:
-  arg2 = sys.argv.pop(1)
+arg2 = sys.argv.pop(1) if len(sys.argv) > 1 else "".encode()
 
 class TestBPFFilter(TestCase):
     def setUp(self):

@@ -65,77 +65,6 @@ args = parser.parse_args()
 countdown = int(args.count)
 debug = 0
 
-# define BPF program
-bpf_text = """
-#include <uapi/linux/ptrace.h>
-#include <linux/sched.h>
-#include <linux/nsproxy.h>
-#include <linux/pid_namespace.h>
-#include <linux/init_task.h>
-
-typedef struct pid_key {
-    u32 id;
-    u64 slot;
-} pid_key_t;
-
-typedef struct pidns_key {
-    u32 id;
-    u64 slot;
-} pidns_key_t;
-
-BPF_HASH(start, u32);
-STORAGE
-
-// record enqueue timestamp
-static int trace_enqueue(u32 tgid, u32 pid)
-{
-    if (FILTER || pid == 0)
-        return 0;
-    u64 ts = bpf_ktime_get_ns();
-    start.update(&pid, &ts);
-    return 0;
-}
-
-static __always_inline unsigned int pid_namespace(struct task_struct *task)
-{
-
-/* pids[] was removed from task_struct since commit 2c4704756cab7cfa031ada4dab361562f0e357c0
- * Using the macro INIT_PID_LINK as a conditional judgment.
- */
-#ifdef INIT_PID_LINK
-    struct pid_link pids;
-    unsigned int level;
-    struct upid upid;
-    struct ns_common ns;
-
-    /*  get the pid namespace by following task_active_pid_ns(),
-     *  pid->numbers[pid->level].ns
-     */
-    bpf_probe_read_kernel(&pids, sizeof(pids), &task->pids[PIDTYPE_PID]);
-    bpf_probe_read_kernel(&level, sizeof(level), &pids.pid->level);
-    bpf_probe_read_kernel(&upid, sizeof(upid), &pids.pid->numbers[level]);
-    bpf_probe_read_kernel(&ns, sizeof(ns), &upid.ns->ns);
-
-    return ns.inum;
-#else
-    struct pid *pid;
-    unsigned int level;
-    struct upid upid;
-    struct ns_common ns;
-
-    /*  get the pid namespace by following task_active_pid_ns(),
-     *  pid->numbers[pid->level].ns
-     */
-    bpf_probe_read_kernel(&pid, sizeof(pid), &task->thread_pid);
-    bpf_probe_read_kernel(&level, sizeof(level), &pid->level);
-    bpf_probe_read_kernel(&upid, sizeof(upid), &pid->numbers[level]);
-    bpf_probe_read_kernel(&ns, sizeof(ns), &upid.ns->ns);
-
-    return ns.inum;
-#endif
-}
-"""
-
 bpf_text_kprobe = """
 int trace_wake_up_new_task(struct pt_regs *ctx, struct task_struct *p)
 {
@@ -240,10 +169,77 @@ RAW_TRACEPOINT_PROBE(sched_switch)
 """
 
 is_support_raw_tp = BPF.support_raw_tracepoint()
-if is_support_raw_tp:
-    bpf_text += bpf_text_raw_tp
-else:
-    bpf_text += bpf_text_kprobe
+bpf_text = """
+#include <uapi/linux/ptrace.h>
+#include <linux/sched.h>
+#include <linux/nsproxy.h>
+#include <linux/pid_namespace.h>
+#include <linux/init_task.h>
+
+typedef struct pid_key {
+    u32 id;
+    u64 slot;
+} pid_key_t;
+
+typedef struct pidns_key {
+    u32 id;
+    u64 slot;
+} pidns_key_t;
+
+BPF_HASH(start, u32);
+STORAGE
+
+// record enqueue timestamp
+static int trace_enqueue(u32 tgid, u32 pid)
+{
+    if (FILTER || pid == 0)
+        return 0;
+    u64 ts = bpf_ktime_get_ns();
+    start.update(&pid, &ts);
+    return 0;
+}
+
+static __always_inline unsigned int pid_namespace(struct task_struct *task)
+{
+
+/* pids[] was removed from task_struct since commit 2c4704756cab7cfa031ada4dab361562f0e357c0
+ * Using the macro INIT_PID_LINK as a conditional judgment.
+ */
+#ifdef INIT_PID_LINK
+    struct pid_link pids;
+    unsigned int level;
+    struct upid upid;
+    struct ns_common ns;
+
+    /*  get the pid namespace by following task_active_pid_ns(),
+     *  pid->numbers[pid->level].ns
+     */
+    bpf_probe_read_kernel(&pids, sizeof(pids), &task->pids[PIDTYPE_PID]);
+    bpf_probe_read_kernel(&level, sizeof(level), &pids.pid->level);
+    bpf_probe_read_kernel(&upid, sizeof(upid), &pids.pid->numbers[level]);
+    bpf_probe_read_kernel(&ns, sizeof(ns), &upid.ns->ns);
+
+    return ns.inum;
+#else
+    struct pid *pid;
+    unsigned int level;
+    struct upid upid;
+    struct ns_common ns;
+
+    /*  get the pid namespace by following task_active_pid_ns(),
+     *  pid->numbers[pid->level].ns
+     */
+    bpf_probe_read_kernel(&pid, sizeof(pid), &task->thread_pid);
+    bpf_probe_read_kernel(&level, sizeof(level), &pid->level);
+    bpf_probe_read_kernel(&upid, sizeof(upid), &pid->numbers[level]);
+    bpf_probe_read_kernel(&ns, sizeof(ns), &upid.ns->ns);
+
+    return ns.inum;
+#endif
+}
+""" + (
+    bpf_text_raw_tp if is_support_raw_tp else bpf_text_kprobe
+)
 
 # code substitutions
 if BPF.kernel_struct_has_field(b'task_struct', b'__state') == 1:
@@ -252,7 +248,7 @@ else:
     bpf_text = bpf_text.replace('STATE_FIELD', 'state')
 if args.pid:
     # pid from userspace point of view is thread group from kernel pov
-    bpf_text = bpf_text.replace('FILTER', 'tgid != %s' % args.pid)
+    bpf_text = bpf_text.replace('FILTER', f'tgid != {args.pid}')
 else:
     bpf_text = bpf_text.replace('FILTER', '0')
 if args.milliseconds:
@@ -286,8 +282,8 @@ else:
         'dist.atomic_increment(bpf_log2l(delta));')
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # load BPF program
 b = BPF(text=bpf_text)

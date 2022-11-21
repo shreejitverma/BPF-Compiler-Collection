@@ -89,11 +89,11 @@ if args.duration:
 flag_filter_mask = 0
 for flag in args.flag_filter or []:
     if not flag.startswith('O_'):
-        exit("Bad flag: %s" % flag)
+        exit(f"Bad flag: {flag}")
     try:
         flag_filter_mask |= getattr(os, flag)
     except AttributeError:
-        exit("Bad flag: %s" % flag)
+        exit(f"Bad flag: {flag}")
 
 # define BPF program
 bpf_text = """
@@ -288,9 +288,9 @@ bpf_text_kfunc_body = """
 
 b = BPF(text='')
 # open and openat are always in place since 2.6.16
-fnname_open = b.get_syscall_prefix().decode() + 'open'
-fnname_openat = b.get_syscall_prefix().decode() + 'openat'
-fnname_openat2 = b.get_syscall_prefix().decode() + 'openat2'
+fnname_open = f'{b.get_syscall_prefix().decode()}open'
+fnname_openat = f'{b.get_syscall_prefix().decode()}openat'
+fnname_openat2 = f'{b.get_syscall_prefix().decode()}openat2'
 if b.ksymname(fnname_openat2) == -1:
     fnname_openat2 = None
 
@@ -380,8 +380,8 @@ else:
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # initialize BPF
 b = BPF(text=bpf_text)
@@ -421,8 +421,6 @@ def print_event(cpu, data, size):
     global initial_ts
 
     if not args.full_path or event.type == EventType.EVENT_END:
-        skip = False
-
         # split return value into FD and errno columns
         if event.ret >= 0:
             fd_s = event.ret
@@ -434,6 +432,7 @@ def print_event(cpu, data, size):
         if not initial_ts:
             initial_ts = event.ts
 
+        skip = False
         if args.failed and (event.ret >= 0):
             skip = True
 

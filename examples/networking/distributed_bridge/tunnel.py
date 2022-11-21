@@ -48,7 +48,7 @@ def run():
     ipr.tc("add-filter", "bpf", vx.index, ":1", fd=ingress_fn.fd,
            name=ingress_fn.name, parent="ffff:", action="drop", classid=1)
 
-    for i in range(0, 2):
+    for i in range(2):
         vni = 10000 + i
         with ipdb.create(ifname="br%d" % i, kind="bridge") as br:
             v = ipdb.create(ifname="dummy%d" % i, kind="dummy").up().commit()

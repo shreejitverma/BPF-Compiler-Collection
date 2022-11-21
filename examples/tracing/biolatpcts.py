@@ -123,5 +123,5 @@ while True:
     target_pcts = [50, 75, 90, 99]
     pcts = calc_lat_pct(target_pcts, lat_total, lat_100ms, lat_1ms, lat_10us);
     for i in range(len(target_pcts)):
-        print('p{}={}us '.format(target_pcts[i], int(pcts[i])), end='')
+        print(f'p{target_pcts[i]}={int(pcts[i])}us ', end='')
     print()

@@ -44,12 +44,12 @@ class SharedNetSimulation(Simulation):
         neighbor_list = []
         local_list = []
         cmd = ["netserver", "-D"]
-        for i in range(0, num_neighbors):
+        for i in range(num_neighbors):
             ipaddr = "172.16.1.%d/24" % (i + 100)
             ret = self._create_ns("neighbor%d" % i, ipaddr=ipaddr,
                                   fn=neighbor_fn, cmd=cmd)
             neighbor_list.append(ret)
-        for i in range(0, num_locals):
+        for i in range(num_locals):
             ipaddr = "172.16.1.%d/24" % (i + 150)
             ret = self._create_ns("local%d" % i, ipaddr=ipaddr,
                                   fn=pass_fn, cmd=cmd)

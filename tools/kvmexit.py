@@ -243,18 +243,14 @@ try:
     # Currently, only adapte on intel architecture
     cmd = "cat /proc/cpuinfo | grep vendor_id | head -n 1"
     arch_info = subprocess.check_output(cmd, shell=True).strip()
-    if b"Intel" in arch_info:
-        pass
-    else:
+    if b"Intel" not in arch_info:
         raise Exception("Currently we only support Intel architecture, please do expansion if needs more.")
 
     # Check if kvm module is loaded
-    if os.access("/dev/kvm", os.R_OK | os.W_OK):
-        pass
-    else:
+    if not os.access("/dev/kvm", os.R_OK | os.W_OK):
         raise Exception("Please insmod kvm module to use kvmexit tool.")
 except Exception as e:
-    raise Exception("Failed to do precondition check, due to: %s." % e)
+    raise Exception(f"Failed to do precondition check, due to: {e}.")
 
 try:
     if BPF.support_raw_tracepoint_in_module():
@@ -266,12 +262,12 @@ try:
         func_entry = "TRACEPOINT_PROBE(kvm, kvm_exit)"
         get_er = "args->exit_reason"
 except Exception as e:
-    raise Exception("Failed to catch kvm exit reasons due to: %s" % e)
+    raise Exception(f"Failed to catch kvm exit reasons due to: {e}")
 
 
 def find_tid(tgt_dir, tgt_vcpu):
     for tid in os.listdir(tgt_dir):
-        path = tgt_dir + "/" + tid + "/comm"
+        path = f"{tgt_dir}/{tid}/comm"
         fp = open(path, "r")
         comm = fp.read()
         if (comm.find(tgt_vcpu) != -1):
@@ -283,26 +279,26 @@ thread_context = ""
 header_format = ""
 need_collapse = not args.alltids
 if args.tid is not None:
-    thread_context = "TID %s" % args.tid
-    thread_filter = 'pid != %s' % args.tid
+    thread_context = f"TID {args.tid}"
+    thread_filter = f'pid != {args.tid}'
 elif args.tids is not None:
-    thread_context = "TIDS %s" % args.tids
+    thread_context = f"TIDS {args.tids}"
     thread_filter = "pid != " + " && pid != ".join(args.tids)
     header_format = "TIDS     "
 elif args.pid is not None:
-    thread_context = "PID %s" % args.pid
-    thread_filter = 'tgid != %s' % args.pid
+    thread_context = f"PID {args.pid}"
+    thread_filter = f'tgid != {args.pid}'
     if args.vcpu is not None:
-        thread_context = "PID %s VCPU %s" % (args.pid, args.vcpu)
+        thread_context = f"PID {args.pid} VCPU {args.vcpu}"
         # transfer vcpu to tid
-        tgt_dir = '/proc/' + str(args.pid) + '/task'
-        tgt_vcpu = "CPU " + str(args.vcpu)
+        tgt_dir = f'/proc/{str(args.pid)}/task'
+        tgt_vcpu = f"CPU {str(args.vcpu)}"
         args.tid = find_tid(tgt_dir, tgt_vcpu)
         if args.tid == -1:
             raise Exception("There's no v%s for PID %d." % (tgt_vcpu, args.pid))
-        thread_filter = 'pid != %s' % args.tid
+        thread_filter = f'pid != {args.tid}'
     elif args.alltids:
-        thread_context = "PID %s and its all threads" % args.pid
+        thread_context = f"PID {args.pid} and its all threads"
         header_format = "TID      "
 else:
     thread_context = "all threads"
@@ -317,7 +313,7 @@ b = BPF(text=bpf_text)
 
 
 # header
-print("Display kvm exit reasons and statistics for %s" % thread_context, end="")
+print(f"Display kvm exit reasons and statistics for {thread_context}", end="")
 if duration < 99999999:
     print(" after sleeping %d secs." % duration)
 else:
@@ -332,8 +328,8 @@ except KeyboardInterrupt:
 # Currently, sort multiple tids in descending order is not supported.
 if (args.pid or args.tid):
     ct_reason = []
-    if args.pid:
-        tgid_exit = [0 for i in range(len(exit_reasons))]
+if args.pid:
+    tgid_exit = [0 for _ in range(len(exit_reasons))]
 
 # output
 print("%s%-35s %s" % (header_format, "KVM_EXIT_REASON", "COUNT"))
@@ -343,9 +339,9 @@ pcpu_cache = b["pcpu_cache"]
 for k, v in pcpu_kvm_stat.items():
     tgid = k.value >> 32
     pid = k.value & 0xffffffff
-    for i in range(0, len(exit_reasons)):
+    for i in range(len(exit_reasons)):
         sum1 = 0
-        for inner_cpu in range(0, multiprocessing.cpu_count()):
+        for inner_cpu in range(multiprocessing.cpu_count()):
             cachePIDTGID = pcpu_cache[0][inner_cpu].cache_pid_tgid
             # Take priority to check if it is in cache
             if cachePIDTGID == k.value:
@@ -368,7 +364,7 @@ for k, v in pcpu_kvm_stat.items():
     # Display only for the target tid in descending sort
     if (args.tid and args.tid == pid):
         ct_reason.sort(reverse=True)
-        for i in range(0, len(ct_reason)):
+        for i in range(len(ct_reason)):
             if ct_reason[i][0] == 0:
                 continue
             print("%-35s %-8u" % (exit_reasons[ct_reason[i][1]], ct_reason[i][0]))
@@ -377,10 +373,10 @@ for k, v in pcpu_kvm_stat.items():
 
 # Aggregate all tids' counts for this args.pid in descending sort
 if args.pid and need_collapse:
-    for i in range(0, len(exit_reasons)):
+    for i in range(len(exit_reasons)):
         ct_reason.append((tgid_exit[i], i))
     ct_reason.sort(reverse=True)
-    for i in range(0, len(ct_reason)):
+    for i in range(len(ct_reason)):
         if ct_reason[i][0] == 0:
             continue
         print("%-35s %-8u" % (exit_reasons[ct_reason[i][1]], ct_reason[i][0]))

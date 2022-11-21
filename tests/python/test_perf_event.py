@@ -52,7 +52,7 @@ int do_ret_sys_getuid(void *ctx) {
             if ctypes.get_errno() == 2:
                 raise self.skipTest("hardware events unsupported")
             raise
-        for i in range(0, 100):
+        for _ in range(100):
             os.getuid()
         b[b"dist"].print_log2_hist()
 

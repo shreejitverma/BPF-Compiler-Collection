@@ -183,7 +183,7 @@ with open(kallsyms) as syms:
         (addr, name) = (a[0], a[2])
         name = name.split("\t")[0]
         if name == "btrfs_file_operations":
-            ops = "0x" + addr
+            ops = f"0x{addr}"
             break
     if ops == '':
         print("ERROR: no btrfs_file_operations in /proc/kallsyms. Exiting.")
@@ -192,13 +192,13 @@ with open(kallsyms) as syms:
     bpf_text = bpf_text.replace('BTRFS_FILE_OPERATIONS', ops)
 bpf_text = bpf_text.replace('FACTOR', str(factor))
 if args.pid:
-    bpf_text = bpf_text.replace('FILTER_PID', 'pid != %s' % pid)
+    bpf_text = bpf_text.replace('FILTER_PID', f'pid != {pid}')
 else:
     bpf_text = bpf_text.replace('FILTER_PID', '0')
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # load BPF program
 b = BPF(text=bpf_text)

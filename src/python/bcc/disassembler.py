@@ -234,19 +234,27 @@ class BPFDecoder():
     def decode(cls, i, w, w1):
         try:
             name, opclass, op, bits = cls.opcodes[w.opcode]
-            if opclass == 'dstimm':
+            if opclass == 'call':
+                if w.src != cls.BPF_PSEUDO_CALL:
+                    try:
+                        return '%s bpf_%s#%d' % (name, cls.bpf_helpers[w.immu], w.immu), 0
+                    except IndexError:
+                        return '%s <unknown helper #%d>' % (op, w.immu), 0
+                return f"{name} {'%+d' % w.imm}", 0
+            elif opclass == 'dst':
+                return 'r%d = %s (u%s)r%d' % (w.dst, op, bits, w.dst), 0
+
+            elif opclass == 'dstimm':
                 return 'r%d %s %d' % (w.dst, op, w.imm), 0
 
             elif opclass == 'dstimm_bw':
                 return 'r%d %s 0x%x' % (w.dst, op, w.immu), 0
 
-            elif opclass == 'joff':
-                return 'goto %s <%d>' % ('%+d' % (w.offset),
-                                         i + w.offset + 1), 0
-
             elif opclass == 'dstsrc':
                 return 'r%d %s r%d' % (w.dst, op, w.src), 0
 
+            elif opclass == 'exit':
+                return name, 0
             elif opclass == 'jdstimmoff':
                 return 'if r%d %s %d goto pc%s <%d>' % (w.dst, op, w.imm,
                                                       '%+d' % (w.offset),
@@ -257,6 +265,13 @@ class BPFDecoder():
                                                        '%+d' % (w.offset),
                                                        i + w.offset + 1), 0
 
+            elif opclass == 'joff':
+                return 'goto %s <%d>' % ('%+d' % (w.offset),
+                                         i + w.offset + 1), 0
+
+            elif opclass == 'ldabs':
+                return f'r0 = *(u{bits}*)skb[{w.imm}]', 0
+
             elif opclass == 'lddw':
                 # imm contains the file descriptor (FD) of the map being loaded;
                 # the kernel will translate this into the proper address
@@ -266,9 +281,6 @@ class BPFDecoder():
                     return 'r%d = <map at fd #%d>' % (w.dst, w.imm), 1
                 imm = (w1.imm << 32) | w.imm
                 return 'r%d = 0x%x' % (w.dst, imm), 1
-
-            elif opclass == 'ldabs':
-                return 'r0 = *(u%s*)skb[%s]' % (bits, w.imm), 0
 
             elif opclass == 'ldind':
                 return 'r0 = *(u%d*)skb[r%d %s]' % (bits, w.src,
@@ -286,18 +298,6 @@ class BPFDecoder():
                 return '*(u%d*)(r%d %s) = r%d' % (bits, w.dst,
                                                   '%+d' % (w.offset), w.src), 0
 
-            elif opclass == 'dst':
-                return 'r%d = %s (u%s)r%d' % (w.dst, op, bits, w.dst), 0
-
-            elif opclass == 'call':
-                if w.src != cls.BPF_PSEUDO_CALL:
-                    try:
-                        return '%s bpf_%s#%d' % (name, cls.bpf_helpers[w.immu], w.immu), 0
-                    except IndexError:
-                        return '%s <unknown helper #%d>' % (op, w.immu), 0
-                return '%s %s' % (name, '%+d' % (w.imm)), 0
-            elif opclass == 'exit':
-                return name, 0
             else:
                 raise Exception('unknown opcode class')
 
@@ -310,7 +310,7 @@ def disassemble_instruction(i, w0, w1=None):
 
 def disassemble_str(bpfstr):
     ptr = ct.cast(ct.c_char_p(bpfstr), ct.POINTER(BPFInstr))
-    numinstr = int(len(bpfstr) / 8)
+    numinstr = len(bpfstr) // 8
     w0 = ptr[0]
     skip = 0
     instr_list = []
@@ -328,7 +328,7 @@ def disassemble_str(bpfstr):
     return instr_list
 
 def disassemble_prog(func_name, bpfstr):
-    instr_list = ["Disassemble of BPF program %s:" % (func_name)]
+    instr_list = [f"Disassemble of BPF program {func_name}:"]
     instr_list += disassemble_str(bpfstr)
     return linesep.join(instr_list)
 
@@ -359,7 +359,7 @@ class MapDecoder ():
             elif issubclass(t, ct.Union):
                 field_type_name = "union"
             elif issubclass(t, ct.Array):
-                field_type_name = cls.ctype2str[t._type_] + "[" + str(t._length_) + "]"
+                field_type_name = f"{cls.ctype2str[t._type_]}[{str(t._length_)}]"
             else:
                 field_type_name = cls.ctype2str[t]
         except KeyError:
@@ -388,14 +388,10 @@ class MapDecoder ():
                                                 field_size, sizeinfo)
                 if is_structured:
                     map_lines.append("%s%s%s {" % (indent, sizedesc, field_type_name))
-                    map_lines += cls.print_ct_map(field_type,
-                                                  indent + "  ",
-                                                  offset + field_offset)
+                    map_lines += cls.print_ct_map(field_type, f"{indent}  ", offset + field_offset)
                     map_lines.append("%s} %s;" % (indent, field_name))
                 else:
-                    map_lines.append("%s%s%s %s;" % (indent, sizedesc,
-                                                     field_type_name,
-                                                     field_name))
+                    map_lines.append(f"{indent}{sizedesc}{field_type_name} {field_name};")
         except ValueError:
             # is a bit field
             offset_bits = 0
@@ -419,9 +415,7 @@ class MapDecoder ():
                     offset_bits = 0
                     sizedesc = cls.format_size_info(offset + field_offset,
                                                     field_size, sizeinfo)
-                    map_lines.append("%s%s%s %s;" % (indent, sizedesc,
-                                                     field_type_name,
-                                                     field_name))
+                    map_lines.append(f"{indent}{sizedesc}{field_type_name} {field_name};")
                     offset += field_offset
                 offset_bits += field_bits
         return map_lines
@@ -436,7 +430,7 @@ class MapDecoder ():
             map_lines += cls.print_ct_map(t, "    ", sizeinfo=sizeinfo)
             map_lines.append("  } %s;" % (field_name))
         else:
-            map_lines = ["  %s %s;" % (type_name, field_name)]
+            map_lines = [f"  {type_name} {field_name};"]
         return map_lines
 
     @classmethod

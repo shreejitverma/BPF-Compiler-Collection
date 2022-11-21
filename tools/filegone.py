@@ -108,11 +108,7 @@ int trace_rename(struct pt_regs *ctx, struct renamedata *rd)
 
 
 def action2str(action):
-    if chr(action) == 'D':
-        action_str = "DELETE"
-    else:
-        action_str = "RENAME"
-    return action_str
+    return "DELETE" if chr(action) == 'D' else "RENAME"
 
 if args.pid:
     bpf_text = bpf_text.replace('FILTER',
@@ -122,8 +118,8 @@ else:
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # initialize BPF
 b = BPF(text=bpf_text)
@@ -140,7 +136,7 @@ def print_event(cpu, data, size):
     action_str = action2str(event.action)
     file_str = event.fname.decode('utf-8', 'replace')
     if action_str == "RENAME":
-        file_str = "%s > %s" % (file_str, event.fname2.decode('utf-8', 'replace'))
+        file_str = f"{file_str} > {event.fname2.decode('utf-8', 'replace')}"
     print("%-8s %-7d %-16s %6s %s" % (strftime("%H:%M:%S"), event.pid,
         event.comm.decode('utf-8', 'replace'), action_str, file_str))
 

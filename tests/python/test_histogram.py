@@ -21,14 +21,14 @@ int kprobe__htab_map_delete_elem(struct pt_regs *ctx, struct bpf_map *map, u64 *
     return 0;
 }
 """)
-        for i in range(0, 32):
-            for j in range(0, random.randint(1, 10)):
+        for i in range(32):
+            for _ in range(random.randint(1, 10)):
                 try: del b[b"stub"][c_ulonglong(1 << i)]
                 except: pass
         b[b"hist1"].print_log2_hist()
 
         for i in range(32, 64):
-            for j in range(0, random.randint(1, 10)):
+            for _ in range(random.randint(1, 10)):
                 try: del b[b"stub"][c_ulonglong(1 << i)]
                 except: pass
         b[b"hist1"].print_log2_hist()
@@ -48,8 +48,8 @@ int kprobe__htab_map_delete_elem(struct pt_regs *ctx, struct bpf_map *map, u64 *
     return 0;
 }
 """)
-        for i in range(0, 64):
-            for j in range(0, random.randint(1, 10)):
+        for i in range(64):
+            for _ in range(random.randint(1, 10)):
                 try: del b[b"stub1"][c_ulonglong(1 << i)]
                 except: pass
                 try: del b[b"stub2"][c_ulonglong(1 << i)]
@@ -77,7 +77,8 @@ int kprobe__finish_task_switch(struct pt_regs *ctx, struct task_struct *prev) {
     return 0;
 }
 """)
-        for i in range(0, 100): time.sleep(0.01)
+        for _ in range(100):
+            time.sleep(0.01)
         b[b"hist1"].print_log2_hist()
         b.cleanup()
 
@@ -107,7 +108,7 @@ int kprobe__vfs_read(struct pt_regs *ctx, struct file *file,
             buckets.sort()
             return buckets
 
-        for i in range(0, 100): time.sleep(0.01)
+        for i in range(100): time.sleep(0.01)
         b[b"mk_hist"].print_log2_hist("size", "k_1 & k_2",
                 section_print_fn=lambda bucket: "%3d %d" % (bucket[0], bucket[1]),
                 bucket_fn=lambda bucket: (bucket.key_1, bucket.key_2),

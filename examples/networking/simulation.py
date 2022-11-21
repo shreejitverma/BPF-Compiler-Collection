@@ -52,18 +52,22 @@ class Simulation(object):
         else:
             # delete the potentially leaf-over veth interfaces
             ipr = IPRoute()
-            for i in ipr.link_lookup(ifname='%sa' % ifc_base_name): ipr.link("del", index=i)
+            for i in ipr.link_lookup(ifname=f'{ifc_base_name}a'): ipr.link("del", index=i)
             ipr.close()
             try:
-                out_ifc = self.ipdb.create(ifname="%sa" % ifc_base_name, kind="veth",
-                                           peer="%sb" % ifc_base_name).commit()
+                out_ifc = self.ipdb.create(
+                    ifname=f"{ifc_base_name}a",
+                    kind="veth",
+                    peer=f"{ifc_base_name}b",
+                ).commit()
+
                 in_ifc = self.ipdb.interfaces[out_ifc.peer]
                 in_ifname = in_ifc.ifname
                 with in_ifc as v:
                     v.net_ns_fd = ns_ipdb.nl.netns
             except KeyboardInterrupt:
                 # explicitly remove the interface
-                out_ifname = "%sa" % ifc_base_name
+                out_ifname = f"{ifc_base_name}a"
                 if out_ifname in self.ipdb.interfaces: self.ipdb.interfaces[out_ifname].remove().commit()
                 raise
 
@@ -85,12 +89,12 @@ class Simulation(object):
         in_ifc = ns_ipdb.interfaces[in_ifname]
         with in_ifc as v:
             v.ifname = ns_ifc
-            if ipaddr: v.add_ip("%s" % ipaddr)
+            if ipaddr:
+                v.add_ip(f"{ipaddr}")
             if macaddr: v.address = macaddr
             v.up()
         if disable_ipv6:
-            cmd1 = ["sysctl", "-q", "-w",
-                   "net.ipv6.conf.%s.disable_ipv6=1" % out_ifc.ifname]
+            cmd1 = ["sysctl", "-q", "-w", f"net.ipv6.conf.{out_ifc.ifname}.disable_ipv6=1"]
             subprocess.call(cmd1)
         if fn and out_ifc:
             self.ipdb.nl.tc("add", "ingress", out_ifc["index"], "ffff:")

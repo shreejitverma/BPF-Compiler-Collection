@@ -405,12 +405,7 @@ TRACEPOINT_PROBE(percpu, percpu_free_percpu) {
 """
 
 if kernel_trace:
-        if args.percpu:
-                bpf_source += bpf_source_percpu
-        else:
-                bpf_source += bpf_source_kernel
-
-if kernel_trace:
+    bpf_source += bpf_source_percpu if args.percpu else bpf_source_kernel
     bpf_source = bpf_source.replace("WORKAROUND_MISSING_FREE", "1"
                                     if args.wa_missing_free else "0")
 
@@ -443,21 +438,17 @@ if not kernel_trace:
         print("Attaching to pid %d, Ctrl+C to quit." % pid)
 
         def attach_probes(sym, fn_prefix=None, can_fail=False):
-                if fn_prefix is None:
-                        fn_prefix = sym
+            if fn_prefix is None:
+                    fn_prefix = sym
 
-                try:
-                        bpf.attach_uprobe(name=obj, sym=sym,
-                                          fn_name=fn_prefix + "_enter",
-                                          pid=pid)
-                        bpf.attach_uretprobe(name=obj, sym=sym,
-                                             fn_name=fn_prefix + "_exit",
-                                             pid=pid)
-                except Exception:
-                        if can_fail:
-                                return
-                        else:
-                                raise
+            try:
+                bpf.attach_uprobe(name=obj, sym=sym, fn_name=f"{fn_prefix}_enter", pid=pid)
+                bpf.attach_uretprobe(name=obj, sym=sym, fn_name=f"{fn_prefix}_exit", pid=pid)
+            except Exception:
+                    if can_fail:
+                            return
+                    else:
+                            raise
 
         attach_probes("malloc")
         attach_probes("calloc")
@@ -494,35 +485,37 @@ else:
         # need to guess which allocation corresponds to which free.
 
 def print_outstanding():
-        print("[%s] Top %d stacks with outstanding allocations:" %
-              (datetime.now().strftime("%H:%M:%S"), top_stacks))
-        alloc_info = {}
-        allocs = bpf["allocs"]
-        stack_traces = bpf["stack_traces"]
-        for address, info in sorted(allocs.items(), key=lambda a: a[1].size):
-                if BPF.monotonic_time() - min_age_ns < info.timestamp_ns:
-                        continue
-                if info.stack_id < 0:
-                        continue
-                if info.stack_id in alloc_info:
-                        alloc_info[info.stack_id].update(info.size)
-                else:
-                        stack = list(stack_traces.walk(info.stack_id))
-                        combined = []
-                        for addr in stack:
-                                combined.append(('0x'+format(addr, '016x')+'\t').encode('utf-8') + bpf.sym(addr, pid,
-                                        show_module=True, show_offset=True))
-                        alloc_info[info.stack_id] = Allocation(combined,
-                                                               info.size)
-                if args.show_allocs:
-                        print("\taddr = %x size = %s" %
-                              (address.value, info.size))
-        to_show = sorted(alloc_info.values(),
-                         key=lambda a: a.size)[-top_stacks:]
-        for alloc in to_show:
-                print("\t%d bytes in %d allocations from stack\n\t\t%s" %
-                      (alloc.size, alloc.count,
-                       b"\n\t\t".join(alloc.stack).decode("ascii")))
+    print("[%s] Top %d stacks with outstanding allocations:" %
+          (datetime.now().strftime("%H:%M:%S"), top_stacks))
+    alloc_info = {}
+    allocs = bpf["allocs"]
+    stack_traces = bpf["stack_traces"]
+    for address, info in sorted(allocs.items(), key=lambda a: a[1].size):
+        if BPF.monotonic_time() - min_age_ns < info.timestamp_ns:
+                continue
+        if info.stack_id < 0:
+                continue
+        if info.stack_id in alloc_info:
+            alloc_info[info.stack_id].update(info.size)
+        else:
+            stack = list(stack_traces.walk(info.stack_id))
+            combined = [
+                ('0x' + format(addr, '016x') + '\t').encode('utf-8')
+                + bpf.sym(addr, pid, show_module=True, show_offset=True)
+                for addr in stack
+            ]
+
+            alloc_info[info.stack_id] = Allocation(combined,
+                                                   info.size)
+        if args.show_allocs:
+                print("\taddr = %x size = %s" %
+                      (address.value, info.size))
+    to_show = sorted(alloc_info.values(),
+                     key=lambda a: a.size)[-top_stacks:]
+    for alloc in to_show:
+            print("\t%d bytes in %d allocations from stack\n\t\t%s" %
+                  (alloc.size, alloc.count,
+                   b"\n\t\t".join(alloc.stack).decode("ascii")))
 
 def print_outstanding_combined():
         stack_traces = bpf["stack_traces"]

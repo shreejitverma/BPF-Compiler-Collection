@@ -199,10 +199,7 @@ hcall_table = {
 }
 
 def hcall_table_lookup(opcode):
-        if (opcode in hcall_table):
-                return hcall_table[opcode]
-        else:
-                return opcode
+        return hcall_table[opcode] if (opcode in hcall_table) else opcode
 
 if sys.version_info.major < 3:
     izip_longest = itertools.izip_longest
@@ -435,34 +432,34 @@ def agg_colval(key):
         return hcall_table_lookup(key.value)
 
 def print_ppc_count_stats():
-    data = bpf["ppc_data"]
-    print("[%s]" % strftime("%H:%M:%S"))
-    print("%-45s %8s" % (ppc_agg_colname, "COUNT"))
-    for k, v in sorted(data.items(), key=lambda kv: -kv[1].value)[:args.top]:
-        if k.value == 0xFFFFFFFF:
-            continue    # happens occasionally, we don't need it
-        print("%-45s %8d" % (agg_colval(k), v.value))
-    print("")
-    data.clear()
+        data = bpf["ppc_data"]
+        print(f'[{strftime("%H:%M:%S")}]')
+        print("%-45s %8s" % (ppc_agg_colname, "COUNT"))
+        for k, v in sorted(data.items(), key=lambda kv: -kv[1].value)[:args.top]:
+            if k.value == 0xFFFFFFFF:
+                continue    # happens occasionally, we don't need it
+            print("%-45s %8d" % (agg_colval(k), v.value))
+        print("")
+        data.clear()
 
 def ppc_print_latency_stats():
-    data = bpf["ppc_data"]
-    print("[%s]" % strftime("%H:%M:%S"))
-    print("%-45s %8s %17s %17s %17s" % (ppc_agg_colname, "COUNT",
-          min_time_colname, max_time_colname, avg_time_colname))
-    for k, v in sorted(data.items(),
-                       key=lambda kv: -kv[1].count)[:args.top]:
-        if k.value == 0xFFFFFFFF:
-            continue    # happens occasionally, we don't need it
-        print(("%-45s %8d " + ("%17.6f" if args.milliseconds else "%17.3f ") +
-                              ("%17.6f" if args.milliseconds else "%17.3f ") +
-                              ("%17.6f" if args.milliseconds else "%17.3f")) %
-               (agg_colval(k), v.count,
-                v.min / (1e6 if args.milliseconds else 1e3),
-                v.max / (1e6 if args.milliseconds else 1e3),
-                (v.total_ns / v.count) / (1e6 if args.milliseconds else 1e3)))
-    print("")
-    data.clear()
+        data = bpf["ppc_data"]
+        print(f'[{strftime("%H:%M:%S")}]')
+        print("%-45s %8s %17s %17s %17s" % (ppc_agg_colname, "COUNT",
+              min_time_colname, max_time_colname, avg_time_colname))
+        for k, v in sorted(data.items(),
+                           key=lambda kv: -kv[1].count)[:args.top]:
+            if k.value == 0xFFFFFFFF:
+                continue    # happens occasionally, we don't need it
+            print(("%-45s %8d " + ("%17.6f" if args.milliseconds else "%17.3f ") +
+                                  ("%17.6f" if args.milliseconds else "%17.3f ") +
+                                  ("%17.6f" if args.milliseconds else "%17.3f")) %
+                   (agg_colval(k), v.count,
+                    v.min / (1e6 if args.milliseconds else 1e3),
+                    v.max / (1e6 if args.milliseconds else 1e3),
+                    (v.total_ns / v.count) / (1e6 if args.milliseconds else 1e3)))
+        print("")
+        data.clear()
 
 if args.hcall is not None:
     print("Tracing %sppc hcall '%s'... Ctrl+C to quit." %

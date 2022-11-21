@@ -131,8 +131,12 @@ parser.add_argument("--mntnsmap",
 args = parser.parse_args()
 duration = int(args.duration)
 debug = 0
-need_delimiter = args.delimited and not (args.kernel_stacks_only or
-    args.user_stacks_only)
+need_delimiter = (
+    args.delimited
+    and not args.kernel_stacks_only
+    and not args.user_stacks_only
+)
+
 # TODO: add stack depth, and interval
 
 #
@@ -212,21 +216,18 @@ int do_perf_event(struct bpf_perf_event_data *ctx) {
 }
 """
 
-# set idle filter
-idle_filter = "pid == 0"
-if args.include_idle:
-    idle_filter = "0"
+idle_filter = "0" if args.include_idle else "pid == 0"
 bpf_text = bpf_text.replace('IDLE_FILTER', idle_filter)
 
 # set process/thread filter
 thread_context = ""
 thread_filter = ""
 if args.pid is not None:
-    thread_context = "PID %s" % args.pid
-    thread_filter = " || ".join("tgid == " + str(pid) for pid in args.pid)
+    thread_context = f"PID {args.pid}"
+    thread_filter = " || ".join(f"tgid == {str(pid)}" for pid in args.pid)
 elif args.tid is not None:
-    thread_context = "TID %s" % args.tid
-    thread_filter = " || ".join("pid == " + str(tid) for tid in args.tid)
+    thread_context = f"TID {args.tid}"
+    thread_filter = " || ".join(f"pid == {str(tid)}" for tid in args.tid)
 else:
     thread_context = "all threads"
     thread_filter = '1'
@@ -265,10 +266,13 @@ sample_context = "%s%d %s" % (("", sample_freq, "Hertz") if sample_freq
 
 # header
 if not args.folded:
-    print("Sampling at %s of %s by %s stack" %
-        (sample_context, thread_context, stack_context), end="")
+    print(
+        f"Sampling at {sample_context} of {thread_context} by {stack_context} stack",
+        end="",
+    )
+
     if args.cpu >= 0:
-        print(" on CPU#{}".format(args.cpu), end="")
+        print(f" on CPU#{args.cpu}", end="")
     if duration < 99999999:
         print(" for %d secs." % duration)
     else:
@@ -276,8 +280,8 @@ if not args.folded:
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # initialize BPF & perf_events
 b = BPF(text=bpf_text)
@@ -304,10 +308,7 @@ if not args.folded:
     print()
 
 def aksym(addr):
-    if args.annotations:
-        return b.ksym(addr) + "_[k]".encode()
-    else:
-        return b.ksym(addr)
+    return b.ksym(addr) + "_[k]".encode() if args.annotations else b.ksym(addr)
 
 # output stacks
 missing_stacks = 0
@@ -332,8 +333,7 @@ for k, v in sorted(counts.items(), key=lambda counts: counts[1].value):
     # fix kernel stack
     kernel_stack = []
     if k.kernel_stack_id >= 0:
-        for addr in kernel_tmp:
-            kernel_stack.append(addr)
+        kernel_stack.extend(iter(kernel_tmp))
         # the later IP checking
         if k.kernel_ip:
             kernel_stack.insert(0, k.kernel_ip)
@@ -358,13 +358,12 @@ for k, v in sorted(counts.items(), key=lambda counts: counts[1].value):
                 line.extend([aksym(addr).decode('utf-8', 'replace') for addr in reversed(kernel_stack)])
         print("%s %d" % (";".join(line), v.value))
     else:
-        # print default multi-line stack output
         if not args.user_stacks_only:
             if stack_id_err(k.kernel_stack_id):
                 print("    [Missed Kernel Stack]")
             else:
                 for addr in kernel_stack:
-                    print("    %s" % aksym(addr).decode('utf-8', 'replace'))
+                    print(f"    {aksym(addr).decode('utf-8', 'replace')}")
         if not args.kernel_stacks_only:
             if need_delimiter and k.user_stack_id >= 0 and k.kernel_stack_id >= 0:
                 print("    --")
@@ -372,14 +371,16 @@ for k, v in sorted(counts.items(), key=lambda counts: counts[1].value):
                 print("    [Missed User Stack]")
             else:
                 for addr in user_stack:
-                    print("    %s" % b.sym(addr, k.pid).decode('utf-8', 'replace'))
+                    print(f"    {b.sym(addr, k.pid).decode('utf-8', 'replace')}")
         print("    %-16s %s (%d)" % ("-", k.name.decode('utf-8', 'replace'), k.pid))
         print("        %d\n" % v.value)
 
 # check missing
 if missing_stacks > 0:
-    enomem_str = "" if not has_collision else \
-        " Consider increasing --stack-storage-size."
+    enomem_str = (
+        " Consider increasing --stack-storage-size." if has_collision else ""
+    )
+
     print("WARNING: %d stack traces could not be displayed.%s" %
         (missing_stacks, enomem_str),
         file=stderr)

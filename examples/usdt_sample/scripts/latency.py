@@ -20,12 +20,10 @@ args = parser.parse_args()
 this_pid = int(args.pid)
 this_filter = str(args.filterstr)
 
-debugLevel=0
-if args.verbose:
-    debugLevel=4
-
+debugLevel = 4 if args.verbose else 0
 # BPF program
-bpf_text_shared = "%s/bpf_text_shared.c" % os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+bpf_text_shared = f"{os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))}/bpf_text_shared.c"
+
 bpf_text = open(bpf_text_shared, 'r').read()
 bpf_text += """
 
@@ -96,7 +94,6 @@ else:
 # Create BPF context, load BPF program
 bpf_ctx = BPF(text=bpf_text, usdt_contexts=[usdt_ctx], debug=debugLevel)
 
-# Define latency event and print function
 class OperationEventData(ct.Structure):
   _fields_ = [("operation_id", ct.c_ulonglong),
               ("input", ct.c_char * 64),

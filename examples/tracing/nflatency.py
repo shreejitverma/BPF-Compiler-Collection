@@ -188,13 +188,7 @@ def main():
 
     seconds = 0
     interval = 0
-    if not args.interval:
-        interval = 1
-        if args.duration:
-            interval = args.duration
-    else:
-        interval = args.interval
-
+    interval = args.interval or args.duration or 1
     sys.stderr.write("Tracing netfilter hooks... Hit Ctrl-C to end.\n")
     while 1:
         try:
@@ -213,24 +207,18 @@ def main():
 def build_src(args):
     cond_src = ""
     if args.proto:
-        predicate = " || ".join(map(lambda x: "data.pf == NFPROTO_%s" % x, args.proto))
+        predicate = " || ".join(map(lambda x: f"data.pf == NFPROTO_{x}", args.proto))
         cond_src = "if (!(%s)) { return 0; }\n" % predicate
     if args.hook:
-        predicate = " || ".join(map(lambda x: "data.hook == NF_INET_%s" % x, args.hook))
+        predicate = " || ".join(map(lambda x: f"data.hook == NF_INET_{x}", args.hook))
         cond_src = "%s    if (!(%s)) { return 0;}\n" % (cond_src, predicate)
 
-    factor = "1000"
-    if args.nano:
-        factor = "1"
-
+    factor = "1" if args.nano else "1000"
     return BPF_SRC.replace('COND', cond_src).replace('FACTOR', factor)
 
 
 def bucket_desc(bucket):
-    return "%s %s (tcp %s)" % (
-        NF_PROTOS[bucket[0]],
-        NF_HOOKS[bucket[1]],
-        TCP_FLAGS[bucket[2]])
+    return f"{NF_PROTOS[bucket[0]]} {NF_HOOKS[bucket[1]]} (tcp {TCP_FLAGS[bucket[2]]})"
 
 
 if __name__ == "__main__":

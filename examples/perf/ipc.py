@@ -135,7 +135,7 @@ if (not options.lib_name or not options.sym):
 
 num_cpus = len(utils.get_online_cpus())
 
-b = BPF(text=code, cflags=['-DMAX_CPUS=%s' % str(num_cpus)])
+b = BPF(text=code, cflags=[f'-DMAX_CPUS={num_cpus}'])
 
 # Attach Probes at start and end of the trace function
 # NOTE: When attaching to a function for tracing, during runtime relocation
@@ -150,8 +150,18 @@ b.attach_uretprobe(name=options.lib_name, sym=options.sym, fn_name="trace_end")
 
 def print_data(cpu, data, size):
     e = b["output"].event(data)
-    print("%-8d %-12d %-8.2f %-8s %d" % (e.clk_delta, e.inst_delta, 
-        1.0* e.inst_delta/e.clk_delta, str(round(e.time_delta * 1e-3, 2)) + ' us', cpu))
+    print(
+        (
+            "%-8d %-12d %-8.2f %-8s %d"
+            % (
+                e.clk_delta,
+                e.inst_delta,
+                1.0 * e.inst_delta / e.clk_delta,
+                f'{str(round(e.time_delta * 0.001, 2))} us',
+                cpu,
+            )
+        )
+    )
 
 print("Counters Data")
 print("%-8s %-12s %-8s %-8s %s" % ('CLOCK', 'INSTRUCTION', 'IPC', 'TIME', 'CPU'))

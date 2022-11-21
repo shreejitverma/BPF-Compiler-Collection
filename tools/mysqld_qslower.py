@@ -25,7 +25,7 @@ def usage():
     exit()
 if len(sys.argv) < 2:
     usage()
-if sys.argv[1][0:1] == "-":
+if sys.argv[1][:1] == "-":
     usage()
 pid = int(sys.argv[1])
 min_ns = 1 * 1000000

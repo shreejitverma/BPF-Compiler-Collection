@@ -26,12 +26,10 @@ if this_interval < 1:
     print("Invalid value for interval, using 1.")
     this_interval = 1
 
-debugLevel=0
-if args.verbose:
-    debugLevel=4
-
+debugLevel = 4 if args.verbose else 0
 # BPF program
-bpf_text_shared = "%s/bpf_text_shared.c" % os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+bpf_text_shared = f"{os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))}/bpf_text_shared.c"
+
 bpf_text = open(bpf_text_shared, 'r').read()
 bpf_text += """
 
@@ -98,11 +96,11 @@ print("Tracing... Hit Ctrl-C to end.")
 
 start = 0
 dist = bpf_ctx.get_table("dist")
-while (1):
+while 1:
     try:
         sleep(this_interval)
     except KeyboardInterrupt:
         exit()
 
-    print("[%s]" % strftime("%H:%M:%S"))
+    print(f'[{strftime("%H:%M:%S")}]')
     dist.print_log2_hist("latency (us)")

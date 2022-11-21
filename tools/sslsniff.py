@@ -267,8 +267,8 @@ prog = prog.replace('__MAX_BUF_SIZE__', str(args.max_buffer_size))
 
 if args.debug or args.ebpf:
     print(prog)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 
 b = BPF(text=prog)
@@ -377,9 +377,8 @@ def print_event(cpu, data, size, evt):
         buf = b""
 
     # Filter events by command
-    if args.comm:
-        if not args.comm == event.comm.decode('utf-8', 'replace'):
-            return
+    if args.comm and args.comm != event.comm.decode('utf-8', 'replace'):
+        return
 
     if start == 0:
         start = event.timestamp_ns
@@ -404,7 +403,6 @@ def print_event(cpu, data, size, evt):
     if args.latency:
         base_fmt += " %(lat)-7s"
 
-    fmt = ''.join([base_fmt, "\n%(begin)s\n%(data)s\n%(end)s\n\n"])
     if args.hexdump:
         unwrapped_data = binascii.hexlify(buf)
         data = textwrap.fill(unwrapped_data.decode('utf-8', 'replace'), width=32)
@@ -435,6 +433,7 @@ def print_event(cpu, data, size, evt):
     if buf_size == 0:
         print(base_fmt % fmt_data)
     else:
+        fmt = ''.join([base_fmt, "\n%(begin)s\n%(data)s\n%(end)s\n\n"])
         print(fmt % fmt_data)
 
 b["perf_SSL_rw"].open_perf_buffer(print_event_rw)

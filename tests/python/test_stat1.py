@@ -13,10 +13,7 @@ import sys
 from unittest import main, TestCase
 
 arg1 = sys.argv.pop(1)
-arg2 = ""
-if len(sys.argv) > 1:
-  arg2 = sys.argv.pop(1)
-
+arg2 = sys.argv.pop(1) if len(sys.argv) > 1 else ""
 Key = None
 Leaf = None
 

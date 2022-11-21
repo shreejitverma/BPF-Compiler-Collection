@@ -77,11 +77,10 @@ prev = 0
 print("Printing redirected packets, hit CTRL+C to stop")
 while 1:
     try:
-        val = rxcnt.sum(0).value
-        if val:
+        if val := rxcnt.sum(0).value:
             delta = val - prev
             prev = val
-            print("{} pkt/s to CPU {}".format(delta, cpu_id))
+            print(f"{delta} pkt/s to CPU {cpu_id}")
         time.sleep(1)
     except KeyboardInterrupt:
         print("Removing filter from device")

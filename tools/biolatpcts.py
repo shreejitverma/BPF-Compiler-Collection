@@ -123,11 +123,7 @@ try:
     major = int(args.dev.split(':')[0])
     minor = int(args.dev.split(':')[1])
 except Exception:
-    if '/' in args.dev:
-        stat = os.stat(args.dev)
-    else:
-        stat = os.stat('/dev/' + args.dev)
-
+    stat = os.stat(args.dev) if '/' in args.dev else os.stat(f'/dev/{args.dev}')
     major = os.major(stat.st_rdev)
     minor = os.minor(stat.st_rdev)
 
@@ -138,7 +134,7 @@ elif args.which == 'after-rq-alloc':
 elif args.which == 'on-device':
     start_time_field = 'io_start_time_ns'
 else:
-    print("Invalid latency measurement {}".format(args.which))
+    print(f"Invalid latency measurement {args.which}")
     exit()
 
 bpf_source = bpf_source.replace('__START_TIME_FIELD__', start_time_field)
@@ -200,8 +196,10 @@ def calc_lat_pct(req_pcts, total, lat_100ms, lat_1ms, lat_10us):
             (gran, slots) = data[data_sel]
             (idx, counted) = find_pct(req, total, slots, idx, counted)
             if args.verbose > 1:
-                print('pct_idx={} req={} gran={} idx={} counted={} total={}'
-                      .format(pct_idx, req, gran, idx, counted, total))
+                print(
+                    f'pct_idx={pct_idx} req={req} gran={gran} idx={idx} counted={counted} total={total}'
+                )
+
             if idx > 0 or data_sel == len(data) - 1:
                 break
             counted = last_counted
@@ -296,9 +294,7 @@ while keep_running:
     if args.json:
         result = {}
         for iot in range(4):
-            lats = {}
-            for pi in range(len(args.pcts)):
-                lats[args.pcts[pi]] = rwdf_lat[iot][pi] / SEC
+            lats = {args.pcts[pi]: rwdf_lat[iot][pi] / SEC for pi in range(len(args.pcts))}
             result[io_type[iot]] = lats
         print(json.dumps(result), flush=True)
     else:

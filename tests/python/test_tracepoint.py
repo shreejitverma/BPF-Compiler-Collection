@@ -24,9 +24,7 @@ class TestTracepoint(unittest.TestCase):
         """
         b = bcc.BPF(text=text)
         sleep(1)
-        total_switches = 0
-        for k, v in b[b"switches"].items():
-            total_switches += v.value
+        total_switches = sum(v.value for k, v in b[b"switches"].items())
         self.assertNotEqual(0, total_switches)
 
 @unittest.skipUnless(kernel_version_ge(4,7), "requires kernel >= 4.7")

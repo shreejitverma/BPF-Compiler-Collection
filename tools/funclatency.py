@@ -77,7 +77,7 @@ if not args.interval:
     args.interval = 99999999
 
 def bail(error):
-    print("Error: " + error)
+    print(f"Error: {error}")
     exit(1)
 
 parts = args.pattern.split(':')
@@ -96,7 +96,7 @@ else:
 
 if not args.regexp:
     pattern = pattern.replace('*', '.*')
-    pattern = '^' + pattern + '$'
+    pattern = f'^{pattern}$'
 
 # define BPF program
 bpf_text = """
@@ -174,7 +174,7 @@ else:
     bpf_text = bpf_text.replace('FACTOR', '')
     label = "nsecs"
 if need_key:
-    pid = '-1' if not library else 'tgid'
+    pid = 'tgid' if library else '-1'
 
     if args.level and args.level > 1:
         bpf_text = bpf_text.replace('TYPEDEF',
@@ -334,8 +334,8 @@ bpf_text = bpf_text.replace('CALCULATE',
 
 if args.verbose or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # signal handler
 def signal_ignore(signal, frame):
@@ -366,10 +366,12 @@ print("Tracing %d functions for \"%s\"... Hit Ctrl-C to end." %
 
 # output
 def print_section(key):
-    if not library:
-        return BPF.sym(key[0], -1).decode('utf-8', 'replace')
-    else:
-        return "%s [%d]" % (BPF.sym(key[0], key[1]).decode('utf-8', 'replace'), key[1])
+    return (
+        "%s [%d]"
+        % (BPF.sym(key[0], key[1]).decode('utf-8', 'replace'), key[1])
+        if library
+        else BPF.sym(key[0], -1).decode('utf-8', 'replace')
+    )
 
 exiting = 0 if args.interval else 1
 seconds = 0

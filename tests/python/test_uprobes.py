@@ -60,7 +60,7 @@ int count(struct pt_regs *ctx) {
         symname = b"_start"
         b.attach_uprobe(name=pythonpath, sym=symname, fn_name=b"count")
         b.attach_uretprobe(name=pythonpath, sym=symname, fn_name=b"count")
-        with os.popen(pythonpath.decode() + " -V") as f:
+        with os.popen(f"{pythonpath.decode()} -V") as f:
             pass
         self.assertGreater(b[b"stats"][ctypes.c_int(0)].value, 0)
         b.detach_uretprobe(name=pythonpath, sym=symname)
@@ -90,11 +90,10 @@ int count(struct pt_regs *ctx) {
         p = subprocess.Popen(["ldconfig", "-p"], stdout=subprocess.PIPE)
         for l in p.stdout:
             n = l.split()
-            if n[0] == b"libz.so.1":
-                # if libz was already found, override only if new lib is more
-                # specific (e.g. libc6,x86-64 vs libc6)
-                if not libz_path or len(n[1].split(b",")) > 1:
-                    libz_path = n[-1]
+            if n[0] == b"libz.so.1" and (
+                not libz_path or len(n[1].split(b",")) > 1
+            ):
+                libz_path = n[-1]
         p.wait()
         p.stdout.close()
         p = None

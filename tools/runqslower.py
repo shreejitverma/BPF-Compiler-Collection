@@ -67,36 +67,6 @@ args = parser.parse_args()
 min_us = int(args.min_us)
 debug = 0
 
-# define BPF program
-bpf_text = """
-#include <uapi/linux/ptrace.h>
-#include <linux/sched.h>
-#include <linux/nsproxy.h>
-#include <linux/pid_namespace.h>
-
-BPF_ARRAY(start, u64, MAX_PID);
-
-struct data_t {
-    u32 pid;
-    u32 prev_pid;
-    char task[TASK_COMM_LEN];
-    char prev_task[TASK_COMM_LEN];
-    u64 delta_us;
-};
-
-BPF_PERF_OUTPUT(events);
-
-// record enqueue timestamp
-static int trace_enqueue(u32 tgid, u32 pid)
-{
-    if (FILTER_PID || FILTER_TGID || pid == 0)
-        return 0;
-    u64 ts = bpf_ktime_get_ns();
-    start.update(&pid, &ts);
-    return 0;
-}
-"""
-
 bpf_text_kprobe = """
 int trace_wake_up_new_task(struct pt_regs *ctx, struct task_struct *p)
 {
@@ -228,10 +198,36 @@ RAW_TRACEPOINT_PROBE(sched_switch)
 """
 
 is_support_raw_tp = BPF.support_raw_tracepoint()
-if is_support_raw_tp:
-    bpf_text += bpf_text_raw_tp
-else:
-    bpf_text += bpf_text_kprobe
+bpf_text = """
+#include <uapi/linux/ptrace.h>
+#include <linux/sched.h>
+#include <linux/nsproxy.h>
+#include <linux/pid_namespace.h>
+
+BPF_ARRAY(start, u64, MAX_PID);
+
+struct data_t {
+    u32 pid;
+    u32 prev_pid;
+    char task[TASK_COMM_LEN];
+    char prev_task[TASK_COMM_LEN];
+    u64 delta_us;
+};
+
+BPF_PERF_OUTPUT(events);
+
+// record enqueue timestamp
+static int trace_enqueue(u32 tgid, u32 pid)
+{
+    if (FILTER_PID || FILTER_TGID || pid == 0)
+        return 0;
+    u64 ts = bpf_ktime_get_ns();
+    start.update(&pid, &ts);
+    return 0;
+}
+""" + (
+    bpf_text_raw_tp if is_support_raw_tp else bpf_text_kprobe
+)
 
 # code substitutions
 if BPF.kernel_struct_has_field(b'task_struct', b'__state') == 1:
@@ -241,22 +237,22 @@ else:
 if min_us == 0:
     bpf_text = bpf_text.replace('FILTER_US', '0')
 else:
-    bpf_text = bpf_text.replace('FILTER_US', 'delta_us <= %s' % str(min_us))
+    bpf_text = bpf_text.replace('FILTER_US', f'delta_us <= {min_us}')
 
 if args.tid:
-    bpf_text = bpf_text.replace('FILTER_PID', 'pid != %s' % args.tid)
+    bpf_text = bpf_text.replace('FILTER_PID', f'pid != {args.tid}')
 else:
     bpf_text = bpf_text.replace('FILTER_PID', '0')
 
 if args.pid:
-    bpf_text = bpf_text.replace('FILTER_TGID', 'tgid != %s' % args.pid)
+    bpf_text = bpf_text.replace('FILTER_TGID', f'tgid != {args.pid}')
 else:
     bpf_text = bpf_text.replace('FILTER_TGID', '0')
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # process event
 def print_event(cpu, data, size):

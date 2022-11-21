@@ -109,7 +109,7 @@ def print_recv_pkg(cpu, data, size):
     print("Recv \033[1;31m%d\033[m bytes" % event.recv_len)
 
     print("    ", end="")
-    for i in range(0, event.recv_len):
+    for i in range(event.recv_len):
         print("%02x " % event.pkt[i], end="")
         sys.stdout.flush()
         if (i+1)%16 == 0:

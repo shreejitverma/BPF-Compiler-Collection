@@ -64,9 +64,7 @@ class SmokeTests(TestCase):
         with open("/proc/modules", "r") as mods:
             reg = re.compile("^%s\s" % mod)
             for line in mods:
-                if reg.match(line):
-                    return 1
-                return 0
+                return 1 if reg.match(line) else 0
 
     def setUp(self):
         pass
@@ -247,17 +245,13 @@ class SmokeTests(TestCase):
 
     @skipUnless(kernel_version_ge(4,4), "requires kernel >= 4.4")
     def test_nfsslower(self):
-        if(self.kmod_loaded("nfs")):
+        if (self.kmod_loaded("nfs")):
             self.run_with_int("nfsslower.py")
-        else:
-            pass
 
     @skipUnless(kernel_version_ge(4,4), "requires kernel >= 4.4")
     def test_nfsdist(self):
-        if(self.kmod_loaded("nfs")):
+        if (self.kmod_loaded("nfs")):
             self.run_with_duration("nfsdist.py 1 1")
-        else:
-            pass
 
     @skipUnless(kernel_version_ge(4,6), "requires kernel >= 4.6")
     @mayFail("This fails on github actions environment, and needs to be fixed")
@@ -309,7 +303,6 @@ class SmokeTests(TestCase):
     @skipUnless(kernel_version_ge(4,7), "requires kernel >= 4.7")
     def test_softirqs(self):
         self.run_with_duration("softirqs.py 1 1")
-        pass
 
     @skipUnless(kernel_version_ge(4,4), "requires kernel >= 4.4")
     def test_solisten(self):

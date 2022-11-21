@@ -20,14 +20,10 @@ from sys import stderr
 
 # arg validation
 def positive_int(val):
-    dest = []
     # Filter up to 5 pids, arbitrary
     args_list = val.split(",", 5)
     pids_to_add = min(len(args_list), 5)
-    for i in range(pids_to_add):
-        dest.append(_positive_int(args_list[i]))
-
-    return dest
+    return [_positive_int(args_list[i]) for i in range(pids_to_add)]
 
 def _positive_int(val):
     try:

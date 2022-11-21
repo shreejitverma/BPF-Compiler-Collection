@@ -52,7 +52,7 @@ try:
     while True:
         time.sleep(1)
         print("%-8s\n" % time.strftime("%H:%M:%S"), end="")
-        dist.print_log2_hist(sym + " return:")
+        dist.print_log2_hist(f"{sym} return:")
         dist.clear()
 
 except KeyboardInterrupt:

@@ -131,9 +131,20 @@ int do_trace5(struct pt_regs *ctx) {
         # Compile and run the application
         self.ftemp = NamedTemporaryFile(delete=False)
         self.ftemp.close()
-        comp = Popen(["gcc", "-I", "%s/include" % os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),
-                      "-x", "c++", "-o", self.ftemp.name, "-"],
-                     stdin=PIPE)
+        comp = Popen(
+            [
+                "gcc",
+                "-I",
+                f"{os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))}/include",
+                "-x",
+                "c++",
+                "-o",
+                self.ftemp.name,
+                "-",
+            ],
+            stdin=PIPE,
+        )
+
         comp.stdin.write(app_text)
         comp.stdin.close()
         self.assertEqual(comp.wait(), 0)
@@ -156,7 +167,6 @@ int do_trace5(struct pt_regs *ctx) {
         self.evt_st_2 = 0
         self.evt_st_3 = 0
 
-        # define output data structure in Python
         class Data1(ct.Structure):
             _fields_ = [("v1", ct.c_char),
                         ("v2", ct.c_int)]
@@ -178,9 +188,13 @@ int do_trace5(struct pt_regs *ctx) {
                         ("v2", ct.c_ulonglong)]
 
         def check_event_val(event, event_state, v1, v2, v3, v4):
-            if ((event.v1 == v1 and event.v2 == v2) or (event.v1 == v3 and event.v2 == v4)):
-                if (event_state == 0 or event_state == 1):
-                    return 1
+            if (
+                (
+                    (event.v1 == v1 and event.v2 == v2)
+                    or (event.v1 == v3 and event.v2 == v4)
+                )
+            ) and event_state in [0, 1]:
+                return 1
             return 2
 
         def print_event1(cpu, data, size):
@@ -198,11 +212,11 @@ int do_trace5(struct pt_regs *ctx) {
 
         def print_event4(cpu, data, size):
             event = ct.cast(data, ct.POINTER(Data4)).contents
-            print("%s" % event.v2)
+            print(f"{event.v2}")
 
         def print_event5(cpu, data, size):
             event = ct.cast(data, ct.POINTER(Data5)).contents
-            print("%s" % event.v1)
+            print(f"{event.v1}")
 
         # loop with callback to print_event
         b[b"event1"].open_perf_buffer(print_event1)

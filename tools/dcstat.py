@@ -22,7 +22,7 @@ from time import sleep, strftime
 from sys import argv
 
 def usage():
-    print("USAGE: %s [interval [count]]" % argv[0])
+    print(f"USAGE: {argv[0]} [interval [count]]")
     exit()
 
 # arguments
@@ -101,7 +101,7 @@ stats = {
 # header
 print("%-8s  " % "TIME", end="")
 for stype, idx in sorted(stats.items(), key=lambda k_v: (k_v[1], k_v[0])):
-    print(" %8s" % (stype + "/s"), end="")
+    print(" %8s" % f"{stype}/s", end="")
 print(" %8s" % "HIT%")
 
 # output

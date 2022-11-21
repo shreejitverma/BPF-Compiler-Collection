@@ -264,7 +264,7 @@ def stack_id_err(stack_id):
 
 def print_stack(bpf, stack_id, stack_type, tgid):
     if stack_id_err(stack_id):
-        print("    [Missed %s Stack]" % stack_type)
+        print(f"    [Missed {stack_type} Stack]")
         return
     stack = list(bpf.get_table("stacks").walk(stack_id))
     for addr in stack:
@@ -275,10 +275,7 @@ def print_stack(bpf, stack_id, stack_type, tgid):
 def print_event(bpf, cpu, data, size):
     event = b["events"].event(data)
 
-    if event.cap in capabilities:
-        name = capabilities[event.cap]
-    else:
-        name = "?"
+    name = capabilities[event.cap] if event.cap in capabilities else "?"
     if args.extra:
         print("%-9s %-6d %-6d %-6d %-16s %-4d %-20s %-6d %s" % (strftime("%H:%M:%S"),
             event.uid, event.pid, event.tgid, event.comm.decode('utf-8', 'replace'),

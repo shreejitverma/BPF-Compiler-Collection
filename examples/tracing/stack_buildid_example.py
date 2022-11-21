@@ -99,7 +99,7 @@ for k,v in sorted(counts.items(), key=lambda counts: counts[1].value):
 
   user_stack=list(user_stack)
   for addr in user_stack:
-    print("    %s" % b.sym(addr, k.pid).decode('utf-8', 'replace'))
+    print(f"    {b.sym(addr, k.pid).decode('utf-8', 'replace')}")
   print("    %-16s %s (%d)" % ("-", k.name.decode('utf-8', 'replace'), k.pid))
   print("        %d\n" % v.value)
 

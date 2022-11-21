@@ -17,7 +17,7 @@ logger = logging.getLogger()
 def has_executable(name):
     path = find_executable(name)
     if path is None:
-        raise Exception(name + ": command not found")
+        raise Exception(f"{name}: command not found")
     return path
 
 # This is a decorator that will allow for logging tests, but flagging them as
@@ -36,8 +36,10 @@ def mayFail(message):
             try:
                 res = func(*args, **kwargs)
             except BaseException as e:
-                logger.critical("WARNING! Test %s failed, but marked as passed because it is decorated with @mayFail." %
-                       args[0])
+                logger.critical(
+                    f"WARNING! Test {args[0]} failed, but marked as passed because it is decorated with @mayFail."
+                )
+
                 logger.critical("\tThe reason why this mayFail was: %s" % message)
                 logger.critical("\tThe failure was: \"%s\"" % e)
                 logger.critical("\tStacktrace: \"%s\"" % traceback.format_exc())
@@ -49,7 +51,9 @@ def mayFail(message):
                     raise err
                 else:
                     return res
+
         return wrapper
+
     return decorator
 
 # This is a decorator that will skip tests if any binary in the list is not in PATH.
@@ -87,8 +91,4 @@ def kernel_version_ge(major, minor):
     version = distutils.version.LooseVersion(os.uname()[2]).version
     if version[0] > major:
         return True
-    if version[0] < major:
-        return False
-    if minor and version[1] < minor:
-        return False
-    return True
+    return False if version[0] < major else not minor or version[1] >= minor

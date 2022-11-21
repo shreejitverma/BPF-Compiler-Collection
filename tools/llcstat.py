@@ -99,7 +99,7 @@ except Exception:
     print("Failed to attach to a hardware event. Is this a virtual machine?")
     exit()
 
-print("Running for {} seconds or hit Ctrl-C to end.".format(args.duration))
+print(f"Running for {args.duration} seconds or hit Ctrl-C to end.")
 
 try:
     sleep(float(args.duration))

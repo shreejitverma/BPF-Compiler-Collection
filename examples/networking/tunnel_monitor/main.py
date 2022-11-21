@@ -23,13 +23,14 @@ null = open("/dev/null", "w")
 class TunnelSimulation(Simulation):
     def __init__(self, ipdb):
         super(TunnelSimulation, self).__init__(ipdb)
-        self.available_ips = [list(IPNetwork("192.168.%d.0/24" % i)[1:-1])
-                              for i in range(0, num_vnis)]
+        self.available_ips = [
+            list(IPNetwork("192.168.%d.0/24" % i)[1:-1]) for i in range(num_vnis)
+        ]
 
     def start(self):
         # each entry is tuple of ns_ipdb, out_ifc, in_ifc
         host_info = []
-        for i in range(0, num_hosts):
+        for i in range(num_hosts):
             print("Launching host %i of %i" % (i + 1, num_hosts))
             ipaddr = "172.16.1.%d/24" % (100 + i)
             host_info.append(self._create_ns("host%d" % i, ipaddr=ipaddr))
@@ -41,7 +42,7 @@ class TunnelSimulation(Simulation):
             print("Starting tunnel %i of %i" % (len(self.processes) + 1, num_hosts))
             cmd = ["netserver", "-D"]
             self.processes.append(NSPopen(host[0].nl.netns, cmd, stdout=null))
-            for i in range(0, num_vnis):
+            for i in range(num_vnis):
                 with host[0].create(ifname="vxlan%d" % i, kind="vxlan",
                                     vxlan_id=10000 + i,
                                     vxlan_link=host[0].interfaces.eth0,
@@ -52,9 +53,9 @@ class TunnelSimulation(Simulation):
                     br.add_port(host[0].interfaces["vxlan%d" % i])
                     br.up()
                     with host[0].create(ifname="c%da" % i, kind="veth",
-                                        peer="c%db" % i) as c:
+                                                        peer="c%db" % i) as c:
                         c.up()
-                        c.add_ip("%s/24" % self.available_ips[i].pop(0))
+                        c.add_ip(f"{self.available_ips[i].pop(0)}/24")
                         c.mtu = 1450
                     br.add_port(host[0].interfaces["c%db" % i])
                     host[0].interfaces["c%db" % i].up().commit()

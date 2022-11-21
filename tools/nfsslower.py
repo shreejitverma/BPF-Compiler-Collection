@@ -231,16 +231,15 @@ int trace_getattr_return(struct pt_regs *ctx)
 if min_ms == 0:
     bpf_text = bpf_text.replace('FILTER_US', '0')
 else:
-    bpf_text = bpf_text.replace('FILTER_US',
-                                'delta_us <= %s' % str(min_ms * 1000))
+    bpf_text = bpf_text.replace('FILTER_US', f'delta_us <= {str(min_ms * 1000)}')
 if args.pid:
-    bpf_text = bpf_text.replace('FILTER_PID', 'pid != %s' % pid)
+    bpf_text = bpf_text.replace('FILTER_PID', f'pid != {pid}')
 else:
     bpf_text = bpf_text.replace('FILTER_PID', '0')
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # process event
 def print_event(cpu, data, size):

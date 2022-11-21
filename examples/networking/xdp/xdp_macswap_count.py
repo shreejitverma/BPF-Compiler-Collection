@@ -33,11 +33,7 @@ if len(sys.argv) == 3:
         # XDP_FLAGS_SKB_MODE
         flags |= BPF.XDP_FLAGS_SKB_MODE
 
-    if "-S" == sys.argv[1]:
-        device = sys.argv[2]
-    else:
-        device = sys.argv[1]
-
+    device = sys.argv[2] if sys.argv[1] == "-S" else sys.argv[1]
 mode = BPF.XDP
 #mode = BPF.SCHED_CLS
 
@@ -49,7 +45,8 @@ else:
     ctxtype = "__sk_buff"
 
 # load BPF program
-b = BPF(text = """
+b = BPF(
+    text="""
 #include <uapi/linux/bpf.h>
 #include <linux/in.h>
 #include <linux/if_ether.h>
@@ -151,7 +148,10 @@ int xdp_prog1(struct CTXTYPE *ctx) {
 
     return rc;
 }
-""", cflags=["-w", "-DRETURNCODE=%s" % ret, "-DCTXTYPE=%s" % ctxtype])
+""",
+    cflags=["-w", f"-DRETURNCODE={ret}", f"-DCTXTYPE={ctxtype}"],
+)
+
 
 fn = b.load_func("xdp_prog1", mode)
 
@@ -176,7 +176,7 @@ while 1:
             if val:
                 delta = val - prev[i]
                 prev[i] = val
-                print("{}: {} pkt/s".format(i, delta))
+                print(f"{i}: {delta} pkt/s")
         time.sleep(1)
     except KeyboardInterrupt:
         print("Removing filter from device")

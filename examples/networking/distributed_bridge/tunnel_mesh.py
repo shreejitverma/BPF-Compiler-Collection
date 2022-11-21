@@ -59,10 +59,10 @@ def run():
     ipr.tc("add-filter", "bpf", vx.index, ":1", fd=ingress_fn.fd,
            name=ingress_fn.name, parent="ffff:", action="drop", classid=1)
 
-    for j in range(0, 2):
+    for j in range(2):
         vni = 10000 + j
         with ipdb.create(ifname="br%d" % j, kind="bridge") as br:
-            for i in range(0, num_hosts):
+            for i in range(num_hosts):
                 if i != host_id:
                     v = ipdb.create(ifname="dummy%d%d" % (j , i), kind="dummy").up().commit()
                     ipaddr = "172.16.1.%d" % (100 + i)
@@ -89,7 +89,7 @@ def run():
 
     # dhcp server only runs on host 0
     if dhcp == 1 and host_id == 0:
-        for j in range(0, 2):
+        for j in range(2):
             v1 = "dhcp%d_v1" % j
             v2 = "dhcp%d_v2" % j
             br = ipdb.interfaces["br%d" % j]
@@ -111,7 +111,7 @@ def run():
 
     # dhcp client to assign ip address for each bridge
     if dhcp == 1:
-        for j in range(0, 2):
+        for j in range(2):
             call(["/bin/rm", "-rf", "/tmp/dhcp_%d_%d" % (host_id, j)])
             call(["mkdir", "/tmp/dhcp_%d_%d" % (host_id, j)])
             call(["touch", "/tmp/dhcp_%d_%d/dhclient.conf" % (host_id, j)])

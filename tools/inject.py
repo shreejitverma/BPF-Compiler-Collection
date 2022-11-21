@@ -73,7 +73,7 @@ class Probe:
         if Probe.probability == 1:
             early_pred = "false"
         else:
-            early_pred = "bpf_get_prandom_u32() > %s" % str(int((1<<32)*Probe.probability))
+            early_pred = f"bpf_get_prandom_u32() > {int((1 << 32) * Probe.probability)}"
         # init the map
         # don't do an early exit here so the singular case works automatically
         # have an early exit for probability option
@@ -108,15 +108,15 @@ class Probe:
         right = self.func.rfind(")")
 
         # self.event and self.func_name need to be accessible
-        self.event = self.func[0:left]
+        self.event = self.func[:left]
         self.func_name = self.event + ("_entry" if self.is_entry else "_exit")
         func_sig = "struct pt_regs *ctx"
 
         # assume there's something in there, no guarantee its well formed
         if right > left + 1 and self.is_entry:
-            func_sig += ", " + self.func[left + 1:right]
+            func_sig += f", {self.func[left + 1:right]}"
 
-        return "int %s(%s)" % (self.func_name, func_sig)
+        return f"int {self.func_name}({func_sig})"
 
     def _get_entry_logic(self):
         # there is at least one tup(pred, place) for this function
@@ -128,8 +128,8 @@ class Probe:
                 p->stack[%s] = p->curr_call;
                 p->conds_met++;
         }"""
-        text = text % (self.length, self.preds[0][1], self.preds[0][0],
-                self.preds[0][1])
+        text %= (self.length, self.preds[0][1], self.preds[0][0], self.preds[0][1])
+
 
         # for each additional pred
         for tup in self.preds[1:]:
@@ -273,8 +273,8 @@ class Probe:
 
                 # x->y->z, some string literal
                 # we make unique id with place_ind
-                uuid = "%s_%s" % (place, ind)
-                unique_bool = "is_true_%s" % uuid
+                uuid = f"{place}_{ind}"
+                unique_bool = f"is_true_{uuid}"
                 self.prep += """
         char *str_%s = %s;
         bool %s = true;\n""" % (uuid, ptr.strip(), unique_bool)
@@ -457,9 +457,7 @@ EXAMPLES:
         paren_index = func.find("(")
         potential_id = func[:paren_index]
         pattern = '[_a-zA-z][_a-zA-Z0-9]*$'
-        if re.match(pattern, potential_id):
-            return True
-        return False
+        return bool(re.match(pattern, potential_id))
 
     def _validate_predicate(self, pred):
 
@@ -477,14 +475,16 @@ EXAMPLES:
         return True
 
     def _def_pid_struct(self):
-        text = """
+        return (
+            """
 struct pid_struct {
     u64 curr_call; /* book keeping to handle recursion */
     u64 conds_met; /* stack pointer */
     u64 stack[%s];
 };
-""" % self.length
-        return text
+"""
+            % self.length
+        )
 
     def _attach_probes(self):
         self.bpf = BPF(text=self.program)

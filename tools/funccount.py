@@ -75,7 +75,7 @@ class Probe(object):
                 # This might be an executable (e.g. 'bash')
                 libpath = BPF.find_exe(str(self.library))
             if libpath is None or len(libpath) == 0:
-                raise Exception("unable to find library %s" % self.library)
+                raise Exception(f"unable to find library {self.library}")
             self.library = libpath
 
         self.pid = pid
@@ -92,7 +92,7 @@ class Probe(object):
                 self.bpf.attach_kprobe(
                         event=function,
                         fn_name="trace_count_%d" % index)
-        elif self.type == b"p" and self.library:
+        elif self.type == b"p":
             for index, function in self.trace_functions.items():
                 self.bpf.attach_uprobe(
                         name=self.library,
@@ -104,8 +104,6 @@ class Probe(object):
                 self.bpf.attach_tracepoint(
                         tp=function,
                         fn_name="trace_count_%d" % index)
-        elif self.type == b"u":
-            pass    # Nothing to do -- attach already happened in `load`
 
     def _add_function(self, template, probe_name):
         new_func = b"trace_count_%d" % self.matched
@@ -123,7 +121,7 @@ class Probe(object):
             verify_limit(len(functions))
             for function in functions:
                 text += self._add_function(template, function)
-        elif self.type == b"p" and self.library:
+        elif self.type == b"p":
             # uprobes are tricky because the same function may have multiple
             # addresses, and the same address may be mapped to multiple
             # functions. We aren't allowed to create more than one uprobe
@@ -200,8 +198,7 @@ BPF_ARRAY(counts, u64, NUMLOCATIONS);
             print(bpf_text)
 
         if self.matched == 0:
-            raise Exception("No functions matched by pattern %s" %
-                            self.pattern)
+            raise Exception(f"No functions matched by pattern {self.pattern}")
 
         self.bpf = BPF(text=bpf_text,
                        usdt_contexts=[self.usdt] if self.usdt else [])
