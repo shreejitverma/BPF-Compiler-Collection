@@ -383,9 +383,8 @@ class L4Proto:
         self.num2str = {}
         proto_re = re.compile("IPPROTO_(.*)")
         for attr in socket_all:
-            proto_match = proto_re.match(attr)
-            if proto_match:
-                self.num2str[socket_dct[attr]] = proto_match.group(1)
+            if proto_match := proto_re.match(attr):
+                self.num2str[socket_dct[attr]] = proto_match[1]
 
     def proto2str(self, proto):
         return self.num2str.get(proto, "UNKNOWN")

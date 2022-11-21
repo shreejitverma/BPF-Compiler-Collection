@@ -252,8 +252,8 @@ int trace_%d(struct pt_regs *ctx) {
 
 if args.verbose or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 b = BPF(text=bpf_text)
 
@@ -275,9 +275,17 @@ time_col = args.time or args.timestamp
 if not args.folded:
     print("Tracing function calls slower than %g %s... Ctrl+C to quit." %
           (time_value, time_designator))
-    print((("%-10s " % "TIME" if time_col else "") + "%-14s %-6s %7s %16s %s") %
-        ("COMM", "PID", "LAT(%s)" % time_designator, "RVAL",
-        "FUNC" + (" ARGS" if args.arguments else "")))
+    print(
+        (("%-10s " % "TIME" if time_col else "") + "%-14s %-6s %7s %16s %s")
+        % (
+            "COMM",
+            "PID",
+            f"LAT({time_designator})",
+            "RVAL",
+            "FUNC" + (" ARGS" if args.arguments else ""),
+        )
+    )
+
 
 earliest_ts = 0
 
@@ -292,9 +300,11 @@ def time_str(event):
     return ""
 
 def args_str(event):
-    if not args.arguments:
-        return ""
-    return str.join(" ", ["0x%x" % arg for arg in event.args[:args.arguments]])
+    return (
+        str.join(" ", ["0x%x" % arg for arg in event.args[: args.arguments]])
+        if args.arguments
+        else ""
+    )
 
 def print_stack(event):
     user_stack = []
@@ -308,9 +318,7 @@ def print_stack(event):
         kernel_tmp = stack_traces.walk(event.kernel_stack_id)
 
         # fix kernel stack
-        for addr in kernel_tmp:
-            kernel_stack.append(addr)
-
+        kernel_stack.extend(iter(kernel_tmp))
     do_delimiter = user_stack and kernel_stack
 
     if args.folded:
@@ -325,17 +333,28 @@ def print_stack(event):
     else:
         # print default multi-line stack output.
         for addr in kernel_stack:
-            print("    %s" % b.ksym(addr))
+            print(f"    {b.ksym(addr)}")
         for addr in user_stack:
-            print("    %s" % b.sym(addr, event.tgid_pid))
+            print(f"    {b.sym(addr, event.tgid_pid)}")
 
 def print_event(cpu, data, size):
     event = b["events"].event(data)
     ts = float(event.duration_ns) / time_multiplier
     if not args.folded:
-        print((time_str(event) + "%-14.14s %-6s %7.2f %16x %s %s") %
-            (event.comm.decode('utf-8', 'replace'), event.tgid_pid >> 32,
-             ts, event.retval, args.functions[event.id], args_str(event)))
+        print(
+            (
+                f"{time_str(event)}%-14.14s %-6s %7.2f %16x %s %s"
+                % (
+                    event.comm.decode('utf-8', 'replace'),
+                    event.tgid_pid >> 32,
+                    ts,
+                    event.retval,
+                    args.functions[event.id],
+                    args_str(event),
+                )
+            )
+        )
+
     if args.user_stack or args.kernel_stack:
         print_stack(event)
 

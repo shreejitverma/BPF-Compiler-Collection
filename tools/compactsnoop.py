@@ -285,8 +285,8 @@ else:
     bpf_text = bpf_text.replace("PID_FILTER", "")
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # load BPF program
 b = BPF(text=bpf_text)
@@ -306,10 +306,7 @@ def zone_idx_to_str(idx):
         2: "ZONE_NORMAL",
     }
 
-    if idx in zone_type:
-        return zone_type[idx]
-    else:
-        return str(idx)
+    return zone_type.get(idx, str(idx))
 
 def compact_result_to_str(status):
     # from include/trace/evnets/mmflags.h
@@ -343,10 +340,7 @@ def compact_result_to_str(status):
         8: "success",
     }
 
-    if status in compact_status:
-        return compact_status[status]
-    else:
-        return str(status)
+    return compact_status.get(status, str(status))
 
 # header
 if args.timestamp:

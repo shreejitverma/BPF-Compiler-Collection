@@ -263,7 +263,7 @@ TRACEPOINT_PROBE(preemptirq, TYPE_enable)
     return 0;
 }
 """
-bpf_text = bpf_text.replace('DURATION', '{}'.format(int(args.duration) * 1000))
+bpf_text = bpf_text.replace('DURATION', f'{int(args.duration) * 1000}')
 
 if preemptoff:
     bpf_text = bpf_text.replace('TYPE', 'preempt')
@@ -292,8 +292,14 @@ def print_event(cpu, data, size):
         print("===================================")
         print("TASK: %s (pid %5d tid %5d) Total Time: %-9.3fus\n\n" % (event.comm, \
             (event.id >> 32), (event.id & 0xffffffff), float(event.time) / 1000), end="")
-        print("Section start: {} -> {}".format(b.ksym(stext + event.addrs[0]), b.ksym(stext + event.addrs[1])))
-        print("Section end:   {} -> {}".format(b.ksym(stext + event.addrs[2]), b.ksym(stext + event.addrs[3])))
+        print(
+            f"Section start: {b.ksym(stext + event.addrs[0])} -> {b.ksym(stext + event.addrs[1])}"
+        )
+
+        print(
+            f"Section end:   {b.ksym(stext + event.addrs[2])} -> {b.ksym(stext + event.addrs[3])}"
+        )
+
 
         if event.stack_id >= 0:
             kstack = stack_traces.walk(event.stack_id)
@@ -303,7 +309,7 @@ def print_event(cpu, data, size):
 
             for s in syms:
                 print("  ", end="")
-                print("%s" % s)
+                print(f"{s}")
         else:
             print("NO STACK FOUND DUE TO COLLISION")
         print("===================================")
@@ -313,8 +319,10 @@ def print_event(cpu, data, size):
 
 b["events"].open_perf_buffer(print_event, page_cnt=256)
 
-print("Finding critical section with {} disabled for > {}us".format(
-    ('preempt' if preemptoff else 'IRQ'), args.duration))
+print(
+    f"Finding critical section with {'preempt' if preemptoff else 'IRQ'} disabled for > {args.duration}us"
+)
+
 
 while 1:
     try:

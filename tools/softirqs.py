@@ -65,29 +65,6 @@ else:
     label = "usecs"
 debug = 0
 
-# define BPF program
-bpf_text = """
-#include <uapi/linux/ptrace.h>
-
-typedef struct entry_key {
-    u32 pid;
-    u32 cpu;
-} entry_key_t;
-
-typedef struct irq_key {
-    u32 vec;
-    u64 slot;
-} irq_key_t;
-
-typedef struct account_val {
-    u64 ts;
-    u32 vec;
-} account_val_t;
-
-BPF_HASH(start, entry_key_t, account_val_t);
-BPF_HISTOGRAM(dist, irq_key_t);
-"""
-
 bpf_text_count = """
 TRACEPOINT_PROBE(irq, softirq_entry)
 {
@@ -153,10 +130,29 @@ TRACEPOINT_PROBE(irq, softirq_exit)
 }
 """
 
-if args.events:
-    bpf_text += bpf_text_count
-else:
-    bpf_text += bpf_text_time
+bpf_text = """
+#include <uapi/linux/ptrace.h>
+
+typedef struct entry_key {
+    u32 pid;
+    u32 cpu;
+} entry_key_t;
+
+typedef struct irq_key {
+    u32 vec;
+    u64 slot;
+} irq_key_t;
+
+typedef struct account_val {
+    u64 ts;
+    u32 vec;
+} account_val_t;
+
+BPF_HASH(start, entry_key_t, account_val_t);
+BPF_HISTOGRAM(dist, irq_key_t);
+""" + (
+    bpf_text_count if args.events else bpf_text_time
+)
 
 # code substitutions
 if args.dist:
@@ -174,8 +170,8 @@ else:
     bpf_text = bpf_text.replace('FILTER_CPU', '')
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # load BPF program
 b = BPF(text=bpf_text)
@@ -194,7 +190,7 @@ else:
 # output
 exiting = 0 if args.interval else 1
 dist = b.get_table("dist")
-while (1):
+while 1:
     try:
         sleep(int(args.interval))
     except KeyboardInterrupt:
@@ -207,7 +203,7 @@ while (1):
     if args.dist:
         dist.print_log2_hist(label, "softirq", section_print_fn=vec_to_name)
     else:
-        print("%-16s %11s" % ("SOFTIRQ", "TOTAL_" + label))
+        print("%-16s %11s" % ("SOFTIRQ", f"TOTAL_{label}"))
         for k, v in sorted(dist.items(), key=lambda dist: dist[1].value):
             print("%-16s %11d" % (vec_to_name(k.vec), v.value / factor))
     dist.clear()

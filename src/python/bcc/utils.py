@@ -68,10 +68,7 @@ class ArgString(object):
     never be en/decode()'ed).
     """
     def __init__(self, arg):
-        if sys.version_info[0] >= 3:
-            self.s = arg
-        else:
-            self.s = arg.decode(FILESYSTEMENCODING)
+        self.s = arg if sys.version_info[0] >= 3 else arg.decode(FILESYSTEMENCODING)
 
     def __bytes__(self):
         return self.s.encode(FILESYSTEMENCODING)
@@ -132,16 +129,15 @@ static inline bool %s(char const *ignored, uintptr_t str) {
             # if user probe or @user tag is specified, use
             # bpf_probe_read_user for char* read
             if is_user or \
-                match.group(2).strip() in probe_user_list:
+                    match.group(2).strip() in probe_user_list:
                     probe_read_func = "bpf_probe_read_user"
             fname, streq_functions = StrcmpRewrite._generate_streq_function(
                                             string, probe_read_func,
                                             streq_functions, probeid)
             probeid += 1
             expr = expr.replace("STRCMP", fname, 1)
-        rdict = {
+        return {
             "expr": expr,
             "streq_functions": streq_functions,
-            "probeid": probeid
+            "probeid": probeid,
         }
-        return rdict

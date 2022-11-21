@@ -30,7 +30,7 @@ class VlanSimulation(Simulation):
 
     def start(self):
         # start identical workers each in a namespace
-        for i in range(0, num_clients):
+        for i in range(num_clients):
             httpmod = ("SimpleHTTPServer" if sys.version_info[0] < 3
                        else "http.server")
             cmd = ["python", "-m", httpmod, "80"]
@@ -50,12 +50,12 @@ class VlanSimulation(Simulation):
                name=phys_fn.name, parent="ffff:", action="drop", classid=1)
 
         # allocate vlans randomly
-        available_vlans = [i for i in range(2, 2 + num_vlans)]
+        available_vlans = list(range(2, 2 + num_vlans))
         shuffle(available_vlans)
-        available_ips = [[i for i in range(100, 105)] for i in range(0, num_clients)]
+        available_ips = [list(range(100, 105)) for i in range(num_clients)]
 
         # these are simulations of physical clients
-        for i in range(0, num_clients):
+        for i in range(num_clients):
             macaddr = ("02:00:00:%.2x:%.2x:%.2x" %
                        ((i >> 16) & 0xff, (i >> 8) & 0xff, i & 0xff))
 
@@ -80,9 +80,11 @@ try:
     sleep(10)
     input("Press enter to exit: ")
 
-    stats_collect = {}
-    for key, leaf in ingress.items():
-        stats_collect[key.value] = [leaf.tx_pkts, leaf.tx_bytes, 0, 0]
+    stats_collect = {
+        key.value: [leaf.tx_pkts, leaf.tx_bytes, 0, 0]
+        for key, leaf in ingress.items()
+    }
+
     for key, leaf in egress.items():
         x = stats_collect.get(key.value, [0, 0, 0, 0])
         x[2] = leaf.tx_pkts

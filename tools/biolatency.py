@@ -197,8 +197,8 @@ bpf_text = bpf_text.replace("STORE", store_str)
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # load BPF program
 b = BPF(text=bpf_text)
@@ -220,10 +220,7 @@ if not args.json:
     print("Tracing block device I/O... Hit Ctrl-C to end.")
 
 def disk_print(s):
-    disk = s.decode('utf-8', 'replace')
-    if not disk:
-        disk = "<unknown>"
-    return disk
+    return s.decode('utf-8', 'replace') or "<unknown>"
 
 # see blk_fill_rwbs():
 req_opf = {
@@ -256,23 +253,23 @@ def flags_print(flags):
         desc = "Unknown"
     # flags
     if flags & REQ_SYNC:
-        desc = "Sync-" + desc
+        desc = f"Sync-{desc}"
     if flags & REQ_META:
-        desc = "Metadata-" + desc
+        desc = f"Metadata-{desc}"
     if flags & REQ_FUA:
-        desc = "ForcedUnitAccess-" + desc
+        desc = f"ForcedUnitAccess-{desc}"
     if flags & REQ_PRIO:
-        desc = "Priority-" + desc
+        desc = f"Priority-{desc}"
     if flags & REQ_NOMERGE:
-        desc = "NoMerge-" + desc
+        desc = f"NoMerge-{desc}"
     if flags & REQ_IDLE:
-        desc = "Idle-" + desc
+        desc = f"Idle-{desc}"
     if flags & REQ_RAHEAD:
-        desc = "ReadAhead-" + desc
+        desc = f"ReadAhead-{desc}"
     if flags & REQ_BACKGROUND:
-        desc = "Background-" + desc
+        desc = f"Background-{desc}"
     if flags & REQ_NOWAIT:
-        desc = "NoWait-" + desc
+        desc = f"NoWait-{desc}"
     return desc
 
 # output
@@ -280,26 +277,23 @@ exiting = 0 if args.interval else 1
 dist = b.get_table("dist")
 if args.extension:
     extension = b.get_table("extension")
-while (1):
+while 1:
     try:
         sleep(int(args.interval))
     except KeyboardInterrupt:
         exiting = 1
 
     print()
-    if args.json:
-        if args.timestamp:
-            print("%-8s\n" % strftime("%H:%M:%S"), end="")
+    if args.timestamp:
+        print("%-8s\n" % strftime("%H:%M:%S"), end="")
 
+    if args.json:
         if args.flags:
             dist.print_json_hist(label, "flags", flags_print)
         else:
             dist.print_json_hist(label, "disk", disk_print)
 
     else:
-        if args.timestamp:
-            print("%-8s\n" % strftime("%H:%M:%S"), end="")
-
         if args.flags:
             dist.print_log2_hist(label, "flags", flags_print)
         else:

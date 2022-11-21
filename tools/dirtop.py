@@ -164,14 +164,14 @@ def get_searched_ids(root_directories):
             inode_id = os.lstat(mydir)[stat.ST_INO]
             if inode_id in inode_to_path:
                 if inode_to_path[inode_id] == mydir:
-                    print('Skipping {} as already considered'.format(mydir))
+                    print(f'Skipping {mydir} as already considered')
             else:
-                inodes = "{},{}".format(inodes, inode_id)
+                inodes = f"{inodes},{inode_id}"
                 inode_to_path[inode_id] = mydir
-                print('Considering {} with inode_id {}'.format(mydir, inode_id))
+                print(f'Considering {mydir} with inode_id {inode_id}')
 
     inodes = inodes + '}'
-    if len(inode_to_path) == 0:
+    if not inode_to_path:
         print('Cannot find any valid directory')
         exit()
     return inodes.replace('{,', '{'), inode_to_path
@@ -184,13 +184,12 @@ else:
 
 inodes, inodes_to_path = get_searched_ids(args.rootdirs)
 bpf_text = bpf_text.replace("DIRECTORY_INODES", inodes)
-bpf_text = bpf_text.replace(
-    "INODES_NUMBER", '{}'.format(len(inodes.split(','))))
+bpf_text = bpf_text.replace("INODES_NUMBER", f"{len(inodes.split(','))}")
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # initialize BPF
 b = BPF(text=bpf_text)

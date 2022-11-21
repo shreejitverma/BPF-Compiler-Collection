@@ -189,8 +189,8 @@ else:
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # initialize BPF
 b = BPF(text=bpf_text)
@@ -232,7 +232,7 @@ def print_event(cpu, data, size):
     ms = float(event.delta_us) / 1000
     name = event.name.decode('utf-8', 'replace')
     if event.name_len > DNAME_INLINE_LEN:
-        name = name[:-3] + "..."
+        name = f"{name[:-3]}..."
 
     print("%-8.3f %-14.14s %-6s %1s %-7s %7.2f %s" % (
         time.time() - start_ts, event.comm.decode('utf-8', 'replace'),

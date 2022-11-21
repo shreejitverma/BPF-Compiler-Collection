@@ -50,11 +50,10 @@ class USDTProbeArgument(object):
         if self.valid & BCC_USDT_ARGUMENT_FLAGS.CONSTANT != 0:
             return "%d" % self.constant
         if self.valid & BCC_USDT_ARGUMENT_FLAGS.DEREF_OFFSET == 0:
-            return "%s" % self.base_register_name.decode()
-        if self.valid & BCC_USDT_ARGUMENT_FLAGS.DEREF_OFFSET != 0 and \
-           self.valid & BCC_USDT_ARGUMENT_FLAGS.DEREF_IDENT == 0:
+            return f"{self.base_register_name.decode()}"
+        if self.valid & BCC_USDT_ARGUMENT_FLAGS.DEREF_IDENT == 0:
             if self.valid & BCC_USDT_ARGUMENT_FLAGS.INDEX_REGISTER_NAME != 0:
-                index_offset = " + %s" % self.index_register_name.decode()
+                index_offset = f" + {self.index_register_name.decode()}"
                 if self.valid & BCC_USDT_ARGUMENT_FLAGS.SCALE != 0:
                     index_offset += " * %d" % self.scale
             else:
@@ -62,10 +61,11 @@ class USDTProbeArgument(object):
             sign = '+' if self.deref_offset >= 0 else '-'
             return "*(%s %s %d%s)" % (self.base_register_name.decode(),
                                       sign, abs(self.deref_offset), index_offset)
-        if self.valid & BCC_USDT_ARGUMENT_FLAGS.DEREF_OFFSET != 0 and \
-           self.valid & BCC_USDT_ARGUMENT_FLAGS.DEREF_IDENT != 0 and \
-           self.valid & BCC_USDT_ARGUMENT_FLAGS.BASE_REGISTER_NAME != 0 and \
-           self.base_register_name == "ip":
+        if (
+            self.valid & BCC_USDT_ARGUMENT_FLAGS.DEREF_OFFSET != 0
+            and self.valid & BCC_USDT_ARGUMENT_FLAGS.BASE_REGISTER_NAME != 0
+            and self.base_register_name == "ip"
+        ):
             sign = '+' if self.deref_offset >= 0 else '-'
             return "*(&%s %s %d)" % (self.deref_ident.decode(),
                                      sign, abs(self.deref_offset))
@@ -75,7 +75,7 @@ class USDTProbeArgument(object):
         return "unrecognized argument format, flags %d" % self.valid
 
     def __str__(self):
-        return "%s @ %s" % (self._size_prefix(), self._format())
+        return f"{self._size_prefix()} @ {self._format()}"
 
 class USDTProbeLocation(object):
     def __init__(self, probe, index, location):
@@ -114,7 +114,7 @@ class USDTProbe(object):
                (self.provider.decode(), self.name.decode(), self.semaphore)
 
     def short_name(self):
-        return "%s:%s" % (self.provider.decode(), self.name.decode())
+        return f"{self.provider.decode()}:{self.name.decode()}"
 
     def get_location(self, index):
         loc = bcc_usdt_location()
@@ -132,13 +132,13 @@ class USDT(object):
                 self.context = lib.bcc_usdt_new_frompid(pid, path.encode('ascii'))
             else:
                 self.context = lib.bcc_usdt_new_frompid(pid, ct.c_char_p(0))
-            if self.context == None:
+            if self.context is None:
                 raise USDTException("USDT failed to instrument PID %d" % pid)
         elif path:
             self.path = path
             self.context = lib.bcc_usdt_new_frompath(path.encode('ascii'))
-            if self.context == None:
-                raise USDTException("USDT failed to instrument path %s" % path)
+            if self.context is None:
+                raise USDTException(f"USDT failed to instrument path {path}")
         else:
             raise USDTException(
                     "either a pid or a binary path must be specified")
@@ -186,10 +186,9 @@ To check which probes are present in the process, use the tplist tool.
         if len(probe_parts) == 1:
             return lib.bcc_usdt_get_probe_argctype(
                 self.context, probe_name.encode('ascii'), arg_index).decode()
-        else:
-            (provider_name, probe) = probe_parts
-            return lib.bcc_usdt_get_fully_specified_probe_argctype(
-                self.context, provider_name.encode('ascii'), probe.encode('ascii'), arg_index).decode()
+        (provider_name, probe) = probe_parts
+        return lib.bcc_usdt_get_fully_specified_probe_argctype(
+            self.context, provider_name.encode('ascii'), probe.encode('ascii'), arg_index).decode()
 
     def enumerate_probes(self):
         probes = []

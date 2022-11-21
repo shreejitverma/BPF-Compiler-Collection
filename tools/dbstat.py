@@ -100,9 +100,11 @@ print("Tracing database queries for pids %s slower than %d ms..." %
 latencies = bpf["latency"]
 
 def print_hist():
-    print("[%s]" % strftime("%H:%M:%S"))
-    latencies.print_log2_hist("query latency (%s)" %
-                              ("us" if args.microseconds else "ms"))
+    print(f'[{strftime("%H:%M:%S")}]')
+    latencies.print_log2_hist(
+        f'query latency ({"us" if args.microseconds else "ms"})'
+    )
+
     print("")
     latencies.clear()
 

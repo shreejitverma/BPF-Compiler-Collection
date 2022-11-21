@@ -18,7 +18,7 @@ def help():
 
 if len(sys.argv) != 2:
     help()
-elif len(sys.argv) == 2:
+else:
     INTERFACE = sys.argv[1]
 
 bpf_text = """
@@ -89,45 +89,39 @@ function_skb_matching = bpf.load_func("packet_monitor", BPF.SOCKET_FILTER)
 
 BPF.attach_raw_socket(function_skb_matching, INTERFACE)
 
-    # retrieeve packet_cnt map
 packet_cnt = bpf.get_table('packet_cnt')    # retrieeve packet_cnt map
 
 def decimal_to_human(input_value):
     input_value = int(input_value)
     hex_value = hex(input_value)[2:]
-    pt3 = literal_eval((str('0x'+str(hex_value[-2:]))))
-    pt2 = literal_eval((str('0x'+str(hex_value[-4:-2]))))
-    pt1 = literal_eval((str('0x'+str(hex_value[-6:-4]))))
-    pt0 = literal_eval((str('0x'+str(hex_value[-8:-6]))))
-    result = str(pt0)+'.'+str(pt1)+'.'+str(pt2)+'.'+str(pt3)
-    return result
+    pt3 = literal_eval(str(f'0x{str(hex_value[-2:])}'))
+    pt2 = literal_eval(str(f'0x{str(hex_value[-4:-2])}'))
+    pt1 = literal_eval(str(f'0x{str(hex_value[-6:-4])}'))
+    pt0 = literal_eval(str(f'0x{str(hex_value[-8:-6])}'))
+    return f'{str(pt0)}.{str(pt1)}.{str(pt2)}.{str(pt3)}'
 
 try:
-    while True :
+    while True:
         time.sleep(OUTPUT_INTERVAL)
         packet_cnt_output = packet_cnt.items()
         output_len = len(packet_cnt_output)
         print('\n')
-        for i in range(0,output_len):
+        for i in range(output_len):
             if (len(str(packet_cnt_output[i][0]))) != 30:
                 continue
             temp = int(str(packet_cnt_output[i][0])[8:-2]) # initial output omitted from the kernel space program
-            temp = int(str(bin(temp))[2:]) # raw file
+            temp = int(bin(temp)[2:])
             src = int(str(temp)[:32],2) # part1 
             dst = int(str(temp)[32:],2)
             pkt_num = str(packet_cnt_output[i][1])[7:-1]
 
-            monitor_result = 'source address : ' + decimal_to_human(str(src)) + ' ' + 'destination address : ' + \
-            decimal_to_human(str(dst)) + ' ' + pkt_num + ' ' + 'time : ' + str(time.localtime()[0])+\
-            ';'+str(time.localtime()[1]).zfill(2)+';'+str(time.localtime()[2]).zfill(2)+';'+\
-            str(time.localtime()[3]).zfill(2)+';'+str(time.localtime()[4]).zfill(2)+';'+\
-            str(time.localtime()[5]).zfill(2)
+            monitor_result = f'source address : {decimal_to_human(str(src))} destination address : {decimal_to_human(str(dst))} {pkt_num} time : {str(time.localtime()[0])};{str(time.localtime()[1]).zfill(2)};{str(time.localtime()[2]).zfill(2)};{str(time.localtime()[3]).zfill(2)};{str(time.localtime()[4]).zfill(2)};{str(time.localtime()[5]).zfill(2)}'
+
             print(monitor_result)
 
-            # time.time() outputs time elapsed since 00:00 hours, 1st, Jan., 1970.
+                    # time.time() outputs time elapsed since 00:00 hours, 1st, Jan., 1970.
         packet_cnt.clear() # delete map entires after printing output. confiremd it deletes values and keys too 
-        
+
 except KeyboardInterrupt:
     sys.stdout.close()
-    pass
 

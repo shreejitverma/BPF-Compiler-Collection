@@ -47,10 +47,8 @@ def cleanup():
             # set timestamp if timestamp == 0
             if (current_leaf.timestamp == 0):
                 bpf_sessions[key] = bpf_sessions.Leaf(current_time)
-            else:
-                # delete older entries
-                if (current_time - current_leaf.timestamp > MAX_AGE_SECONDS):
-                    del bpf_sessions[key]
+            elif (current_time - current_leaf.timestamp > MAX_AGE_SECONDS):
+                del bpf_sessions[key]
         except:
             print("cleanup exception.")
     return
@@ -58,7 +56,7 @@ def cleanup():
 
 # args
 def usage():
-    print("USAGE: %s [-i <if_name>]" % argv[0])
+    print(f"USAGE: {argv[0]} [-i <if_name>]")
     print("")
     print("Try '%s -h' for more options." % argv[0])
     exit()
@@ -66,7 +64,7 @@ def usage():
 
 # help
 def help():
-    print("USAGE: %s [-i <if_name>]" % argv[0])
+    print(f"USAGE: {argv[0]} [-i <if_name>]")
     print("")
     print("optional arguments:")
     print("   -h                       print this help")
@@ -133,6 +131,12 @@ packet_count = 0
 # when I find \r\n in a next pkt, append and print the whole url
 local_dictionary = {}
 
+# ethernet header length
+ETH_HLEN = 14
+
+# CR + LF (substring to find)
+crlf = b'\r\n'
+
 while 1:
     # retrieve raw packet from socket
     packet_str = os.read(socket_fd, 4096)  # set packet length to max packet length on the interface
@@ -144,9 +148,6 @@ while 1:
 
     # convert packet into bytearray
     packet_bytearray = bytearray(packet_str)
-
-    # ethernet header length
-    ETH_HLEN = 14
 
     # IP HEADER
     # https://tools.ietf.org/html/rfc791
@@ -211,9 +212,6 @@ while 1:
 
     # payload_string contains only packet payload
     payload_string = packet_str[(payload_offset):(len(packet_bytearray))]
-    # CR + LF (substring to find)
-    crlf = b'\r\n'
-
     # current_Key contains ip source/dest and port source/map
     # useful for direct bpf_sessions map access
     current_Key = bpf_sessions.Key(ip_src, ip_dst, port_src, port_dst)
@@ -239,55 +237,47 @@ while 1:
             # save current part of the payload_string in dictionary
             # <key(ips,ipd,ports,portd),payload_string>
             local_dictionary[binascii.hexlify(current_Key)] = payload_string
-    else:
-        # NO match: HTTP GET/POST  NOT found
-
-        # check if the packet belong to a session saved in bpf_sessions
-        if (current_Key in bpf_sessions):
+    elif (current_Key in bpf_sessions):
             # check id the packet belong to a session saved in local_dictionary
             # (local_dictionary maintains HTTP GET/POST url not
             # printed yet because split in N packets)
-            if (binascii.hexlify(current_Key) in local_dictionary):
-                # first part of the HTTP GET/POST url is already present in
-                # local dictionary (prev_payload_string)
-                prev_payload_string = local_dictionary[binascii.hexlify(current_Key)]
+        if (binascii.hexlify(current_Key) in local_dictionary):
+            # first part of the HTTP GET/POST url is already present in
+            # local dictionary (prev_payload_string)
+            prev_payload_string = local_dictionary[binascii.hexlify(current_Key)]
+            # last packet. containing last part of HTTP GET/POST
+            # url split in N packets. Append current payload
+            prev_payload_string += payload_string
                 # looking for CR+LF in current packet.
-                if (crlf in payload_string):
-                    # last packet. containing last part of HTTP GET/POST
-                    # url split in N packets. Append current payload
-                    prev_payload_string += payload_string
-                    # print HTTP GET/POST url
-                    printUntilCRLF(prev_payload_string)
-                    # clean bpf_sessions & local_dictionary
+            if (crlf in payload_string):
+                # print HTTP GET/POST url
+                printUntilCRLF(prev_payload_string)
+                # clean bpf_sessions & local_dictionary
+                try:
+                    del bpf_sessions[current_Key]
+                    del local_dictionary[binascii.hexlify(current_Key)]
+                except:
+                    print("error deleting from map or dictionary")
+            else:
+                # check if not size exceeding
+                # (usually HTTP GET/POST url < 8K )
+                if (len(prev_payload_string) > MAX_URL_STRING_LEN):
+                    print("url too long")
                     try:
                         del bpf_sessions[current_Key]
                         del local_dictionary[binascii.hexlify(current_Key)]
                     except:
-                        print("error deleting from map or dictionary")
-                else:
-                    # NOT last packet. Containing part of HTTP GET/POST url
-                    # split in N packets.
-                    # Append current payload
-                    prev_payload_string += payload_string
-                    # check if not size exceeding
-                    # (usually HTTP GET/POST url < 8K )
-                    if (len(prev_payload_string) > MAX_URL_STRING_LEN):
-                        print("url too long")
-                        try:
-                            del bpf_sessions[current_Key]
-                            del local_dictionary[binascii.hexlify(current_Key)]
-                        except:
-                            print("error deleting from map or dict")
-                    # update dictionary
-                    local_dictionary[binascii.hexlify(current_Key)] = prev_payload_string
-            else:
-                # first part of the HTTP GET/POST url is
-                # NOT present in local dictionary
-                # bpf_sessions contains invalid entry -> delete it
-                try:
-                    del bpf_sessions[current_Key]
-                except:
-                    print("error del bpf_session")
+                        print("error deleting from map or dict")
+                # update dictionary
+                local_dictionary[binascii.hexlify(current_Key)] = prev_payload_string
+        else:
+            # first part of the HTTP GET/POST url is
+            # NOT present in local dictionary
+            # bpf_sessions contains invalid entry -> delete it
+            try:
+                del bpf_sessions[current_Key]
+            except:
+                print("error del bpf_session")
 
     # check if dirty entry are present in bpf_sessions
     if (((packet_count) % CLEANUP_N_PACKETS) == 0):

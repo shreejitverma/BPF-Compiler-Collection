@@ -76,8 +76,7 @@ class DiGraph(object):
     def edges(self):
         edges = []
         for node, neighbors in self.adjacency_map.items():
-            for neighbor in neighbors:
-                edges.append((node, neighbor))
+            edges.extend((node, neighbor) for neighbor in neighbors)
         return edges
 
     def nodes(self):
@@ -205,7 +204,7 @@ def simple_cycles(G):
     '''
 
     def _unblock(thisnode, blocked, B):
-        stack = set([thisnode])
+        stack = {thisnode}
         while stack:
             node = stack.pop()
             if node in blocked:
@@ -268,18 +267,16 @@ def find_cycle(graph):
         [(a1,a2), (a2,a3), ... (an-1,an), (an, a1)]
     Otherwise returns an empty list.
     '''
-    cycles = list(simple_cycles(graph))
-    if cycles:
-        nodes = cycles[0]
-        nodes.append(nodes[0])
-        edges = []
-        prev = nodes[0]
-        for node in nodes[1:]:
-            edges.append((prev, node))
-            prev = node
-        return edges
-    else:
+    if not (cycles := list(simple_cycles(graph))):
         return []
+    nodes = cycles[0]
+    nodes.append(nodes[0])
+    edges = []
+    prev = nodes[0]
+    for node in nodes[1:]:
+        edges.append((prev, node))
+        prev = node
+    return edges
 
 
 def print_cycle(binary, graph, edges, thread_info, print_stack_trace_fn):
@@ -508,7 +505,7 @@ def main():
                 pid=args.pid,
             )
         except Exception as e:
-            print('%s. Failed to attach to symbol: %s' % (str(e), symbol))
+            print(f'{str(e)}. Failed to attach to symbol: {symbol}')
             sys.exit(1)
 
     def print_stack_trace(stack_id):

@@ -39,7 +39,7 @@ class TunnelSimulation(Simulation):
     def start(self):
         # each entry is tuple of ns_ipdb, out_ifc, in_ifc
         host_info = []
-        for i in range(0, num_hosts):
+        for i in range(num_hosts):
             print("Launching host %i of %i" % (i + 1, num_hosts))
             ipaddr = "172.16.1.%d/24" % (100 + i)
             host_info.append(self._create_ns("host%d" % i, ipaddr=ipaddr,
@@ -58,7 +58,7 @@ class TunnelSimulation(Simulation):
         host0_br_ips = []
         if dhcp == 1:
             print("Waiting for host0 br1/br2 ip addresses available")
-            for j in range(0, 2):
+            for j in range(2):
                 interface = host_info[0][0].interfaces["br%d" % j]
                 interface.wait_ip("99.1.0.0", 16, timeout=60)
                 host0_br_ips = [x[0] for x in interface.ipaddr
@@ -70,7 +70,7 @@ class TunnelSimulation(Simulation):
         # traffic test
         print("Validating connectivity")
         for i in range(1, num_hosts):
-            for j in range(0, 2):
+            for j in range(2):
                 interface = host_info[i][0].interfaces["br%d" % j]
                 interface.wait_ip("99.1.0.0", 16, timeout=60)
                 print("VNI%d between host0 and host%d" % (10000 + j, i))

@@ -41,13 +41,10 @@ counts = {}
 
 def parse_probes(typ):
     if args.verbosity > 1:
-        print("open %ss:" % typ)
-    for probe in open("/sys/kernel/debug/tracing/%s_events" % typ):
-        # Probes opened by bcc have a specific pattern that includes the pid
-        # of the requesting process.
-        match = re.search('_bcc_(\\d+)\\s', probe)
-        if match:
-            pid = int(match.group(1))
+        print(f"open {typ}s:")
+    for probe in open(f"/sys/kernel/debug/tracing/{typ}_events"):
+        if match := re.search('_bcc_(\\d+)\\s', probe):
+            pid = int(match[1])
             counts[(pid, typ)] = counts.get((pid, typ), 0) + 1
         if args.verbosity > 1:
             print(probe.strip())
@@ -65,9 +62,8 @@ def find_bpf_fds(pid):
             link = os.readlink(os.path.join(root, fd))
         except OSError:
             continue
-        match = re.match('anon_inode:bpf-([\\w-]+)', link)
-        if match:
-            tup = (pid, match.group(1))
+        if match := re.match('anon_inode:bpf-([\\w-]+)', link):
+            tup = pid, match[1]
             counts[tup] = counts.get(tup, 0) + 1
 
 for pdir in os.listdir('/proc'):

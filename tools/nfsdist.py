@@ -128,13 +128,13 @@ int trace_getattr_return(struct pt_regs *ctx)
 """
 bpf_text = bpf_text.replace('FACTOR', str(factor))
 if args.pid:
-    bpf_text = bpf_text.replace('FILTER_PID', 'pid != %s' % pid)
+    bpf_text = bpf_text.replace('FILTER_PID', f'pid != {pid}')
 else:
     bpf_text = bpf_text.replace('FILTER_PID', '0')
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # load BPF program
 b = BPF(text=bpf_text)

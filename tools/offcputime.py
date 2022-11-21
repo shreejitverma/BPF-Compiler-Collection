@@ -238,8 +238,12 @@ else:
 bpf_text = bpf_text.replace('USER_STACK_GET', user_stack_get)
 bpf_text = bpf_text.replace('KERNEL_STACK_GET', kernel_stack_get)
 
-need_delimiter = args.delimited and not (args.kernel_stacks_only or
-                                         args.user_stacks_only)
+need_delimiter = (
+    args.delimited
+    and not args.kernel_stacks_only
+    and not args.user_stacks_only
+)
+
 
 # check for an edge case; the code below will handle this case correctly
 # but ultimately nothing will be displayed
@@ -250,9 +254,9 @@ if args.kernel_threads_only and args.user_stacks_only:
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        print("ERROR: Exiting")
-        exit(3)
+if args.ebpf:
+    print("ERROR: Exiting")
+    exit(3)
 
 # initialize BPF
 b = BPF(text=bpf_text)
@@ -265,8 +269,11 @@ if matched == 0:
 
 # header
 if not folded:
-    print("Tracing off-CPU time (us) of %s by %s stack" %
-        (thread_context, stack_context), end="")
+    print(
+        f"Tracing off-CPU time (us) of {thread_context} by {stack_context} stack",
+        end="",
+    )
+
     if duration < 99999999:
         print(" for %d secs." % duration)
     else:
@@ -338,13 +345,12 @@ for k, v in sorted(counts.items(), key=lambda counts: counts[1].value):
                     for addr in reversed(kernel_stack)])
         print("%s %d" % (";".join(line), v.value))
     else:
-        # print default multi-line stack output
         if not args.user_stacks_only:
             if stack_id_err(k.kernel_stack_id):
                 print("    [Missed Kernel Stack]")
             else:
                 for addr in kernel_stack:
-                    print("    %s" % b.ksym(addr).decode('utf-8', 'replace'))
+                    print(f"    {b.ksym(addr).decode('utf-8', 'replace')}")
         if not args.kernel_stacks_only:
             if need_delimiter and k.user_stack_id >= 0 and k.kernel_stack_id >= 0:
                 print("    --")
@@ -352,13 +358,12 @@ for k, v in sorted(counts.items(), key=lambda counts: counts[1].value):
                 print("    [Missed User Stack]")
             else:
                 for addr in user_stack:
-                    print("    %s" % b.sym(addr, k.tgid).decode('utf-8', 'replace'))
+                    print(f"    {b.sym(addr, k.tgid).decode('utf-8', 'replace')}")
         print("    %-16s %s (%d)" % ("-", k.name.decode('utf-8', 'replace'), k.pid))
         print("        %d\n" % v.value)
 
 if missing_stacks > 0:
-    enomem_str = "" if not has_enomem else \
-        " Consider increasing --stack-storage-size."
+    enomem_str = " Consider increasing --stack-storage-size." if has_enomem else ""
     print("WARNING: %d stack traces lost and could not be displayed.%s" %
         (missing_stacks, enomem_str),
         file=stderr)

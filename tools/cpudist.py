@@ -150,14 +150,11 @@ BAIL:
 """
 
 if args.pid:
-    bpf_text = bpf_text.replace('PID_FILTER', 'tgid != %s' % args.pid)
+    bpf_text = bpf_text.replace('PID_FILTER', f'tgid != {args.pid}')
 else:
     bpf_text = bpf_text.replace('PID_FILTER', '0')
 
-# set idle filter
-idle_filter = 'pid == 0'
-if args.include_idle:
-    idle_filter = '0'
+idle_filter = '0' if args.include_idle else 'pid == 0'
 bpf_text = bpf_text.replace('IDLE_FILTER', idle_filter)
 
 if args.milliseconds:
@@ -202,8 +199,8 @@ bpf_text = bpf_text.replace("STORE", store_str)
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 max_pid = int(open("/proc/sys/kernel/pid_max").read())
 
@@ -211,8 +208,10 @@ b = BPF(text=bpf_text, cflags=["-DMAX_PID=%d" % max_pid])
 b.attach_kprobe(event_re="^finish_task_switch$|^finish_task_switch\.isra\.\d$",
                 fn_name="sched_switch")
 
-print("Tracing %s-CPU time... Hit Ctrl-C to end." %
-      ("off" if args.offcpu else "on"))
+print(
+    f'Tracing {"off" if args.offcpu else "on"}-CPU time... Hit Ctrl-C to end.'
+)
+
 
 exiting = 0 if args.interval else 1
 dist = b.get_table("dist")

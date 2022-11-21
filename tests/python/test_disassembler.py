@@ -150,7 +150,7 @@ class TestDisassembler(TestCase):
    0: (b7) r0 = 1
    1: (95) exit""",
             b.disassemble_func(b"test_func"))
-        
+
         def _assert_equal_ignore_fd_id(s1, s2):
             # In first line of string like
             #    Layout of BPF map test_map (type HASH, FD 3, ID 0):
@@ -159,9 +159,9 @@ class TestDisassembler(TestCase):
             s1_lines = s1.split('\n')
             s2_lines = s2.split('\n')
             s1_first_cut = s1_lines[0]
-            s1_first_cut = s1_first_cut[0:s1_first_cut.index("FD")]
+            s1_first_cut = s1_first_cut[:s1_first_cut.index("FD")]
             s2_first_cut = s2_lines[0]
-            s2_first_cut = s2_first_cut[0:s2_first_cut.index("FD")]
+            s2_first_cut = s2_first_cut[:s2_first_cut.index("FD")]
 
             self.assertEqual(s1_first_cut, s2_first_cut)
 

@@ -70,12 +70,15 @@ def _getParser():
     return parser.parse_args
 
 
-class Global():
+class Global:
     parse_args = _getParser()
     args = None
     argv = None
-    SIGNUM_TO_SIGNAME = dict((v, re.sub("^SIG", "", k))
-        for k,v in signal.__dict__.items() if re.match("^SIG[A-Z]+$", k))
+    SIGNUM_TO_SIGNAME = {
+        v: re.sub("^SIG", "", k)
+        for k, v in signal.__dict__.items()
+        if re.match("^SIG[A-Z]+$", k)
+    }
 
 def _embedded_c(args):
     """Generate C program for sched_process_exit tracepoint in kernel/exit.c."""
@@ -119,19 +122,27 @@ def _embedded_c(args):
 
     if Global.args.pid:
         if Global.args.per_thread:
-            filter_pid = "task->tgid != %s" % Global.args.pid
+            filter_pid = f"task->tgid != {Global.args.pid}"
         else:
-            filter_pid = "!(task->tgid == %s && task->pid == task->tgid)" % Global.args.pid
+            filter_pid = f"!(task->tgid == {Global.args.pid} && task->pid == task->tgid)"
     else:
         filter_pid = '0' if Global.args.per_thread else 'task->pid != task->tgid'
 
     code_substitutions = [
-        ('EBPF_COMMENT', '' if not Global.args.ebpf else _ebpf_comment()),
+        ('EBPF_COMMENT', _ebpf_comment() if Global.args.ebpf else ''),
         ('FILTER_PID', filter_pid),
-        ('FILTER_EXIT_CODE', '0' if not Global.args.failed else 'task->exit_code == 0'),
-        ('PROCESS_START_TIME_NS', 'task->start_time' if not Global.args.timespec else
-             '(task->start_time.tv_sec * 1000000000L) + task->start_time.tv_nsec'),
+        (
+            'FILTER_EXIT_CODE',
+            'task->exit_code == 0' if Global.args.failed else '0',
+        ),
+        (
+            'PROCESS_START_TIME_NS',
+            '(task->start_time.tv_sec * 1000000000L) + task->start_time.tv_nsec'
+            if Global.args.timespec
+            else 'task->start_time',
+        ),
     ]
+
     for old,new in code_substitutions:
         c = c.replace(old, new)
     return c
@@ -156,7 +167,7 @@ def _print_header():
 
 buffer = None
 
-def _print_event(cpu, data, size): # callback
+def _print_event(cpu, data, size):    # callback
     """Print the exit event."""
     global buffer
     e = buffer["events"].event(data)
@@ -172,8 +183,7 @@ def _print_event(cpu, data, size): # callback
     if e.sig_info == 0:
         print("0" if e.exit_code == 0 else "code %d" % e.exit_code)
     else:
-        sig = e.sig_info & 0x7F
-        if sig:
+        if sig := e.sig_info & 0x7F:
             print("signal %d (%s)" % (sig, signum_to_signame(sig)), end="")
         if e.sig_info & 0x80:
             print(", core dumped ", end="")
@@ -221,7 +231,7 @@ def initialize(arg_list = sys.argv[1:]):
                           'Retrying with --timespec')
                 Global.args.timespec = True
                 continue
-            return (os.EX_SOFTWARE, "BPF error: " + error)
+            return os.EX_SOFTWARE, f"BPF error: {error}"
         except:
             return (os.EX_SOFTWARE, "Unexpected error: {0}".format(sys.exc_info()[0]))
 

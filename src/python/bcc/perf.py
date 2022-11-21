@@ -120,9 +120,11 @@ class Perf(object):
                     self.ctype_fields.extend([item[0] for item in _bp_len_union._fields_])
 
                 def __setattr__(self, key, value):
-                    if hasattr(self, 'ctype_fields') and key not in self.ctype_fields:
-                        print("Warning: Setting field {} on perf_event_attr that isn't part of the ctype - {} won't make it to perf_event_open".format(key, key))
-                    super(Perf.perf_event_attr, self).__setattr__(key, value)
+                        if hasattr(self, 'ctype_fields') and key not in self.ctype_fields:
+                                print(
+                                    f"Warning: Setting field {key} on perf_event_attr that isn't part of the ctype - {key} won't make it to perf_event_open"
+                                )
+                        super(Perf.perf_event_attr, self).__setattr__(key, value)
 
         # x86 specific, from arch/x86/include/generated/uapi/asm/unistd_64.h
         NR_PERF_EVENT_OPEN = 298
@@ -160,11 +162,10 @@ class Perf(object):
                         errno_ = ct.get_errno()
                         raise OSError(errno_, os.strerror(errno_))
 
-                if attr.type == Perf.PERF_TYPE_TRACEPOINT:
-                    if Perf.ioctl(pfd, Perf.PERF_EVENT_IOC_SET_FILTER,
-                                  "common_pid == -17") < 0:
-                            errno_ = ct.get_errno()
-                            raise OSError(errno_, os.strerror(errno_))
+                if (attr.type == Perf.PERF_TYPE_TRACEPOINT and Perf.ioctl(
+                    pfd, Perf.PERF_EVENT_IOC_SET_FILTER, "common_pid == -17") < 0):
+                        errno_ = ct.get_errno()
+                        raise OSError(errno_, os.strerror(errno_))
 
                 # we don't setup the perf ring buffers, as we won't read them
 

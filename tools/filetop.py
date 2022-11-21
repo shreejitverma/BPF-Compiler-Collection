@@ -159,8 +159,8 @@ else:
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # initialize BPF
 b = BPF(text=bpf_text)
@@ -202,7 +202,7 @@ while 1:
                                 key=sort_fn)):
         name = k.name.decode('utf-8', 'replace')
         if k.name_len > DNAME_INLINE_LEN:
-            name = name[:-3] + "..."
+            name = f"{name[:-3]}..."
 
         # print line
         print("%-7d %-16s %-6d %-6d %-7d %-7d %1s %s" % (k.pid,

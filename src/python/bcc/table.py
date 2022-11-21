@@ -99,13 +99,11 @@ linear_index_max = 1025
 def _stars(val, val_max, width):
     i = 0
     text = ""
-    while (1):
-        if (i > (width * val / val_max) - 1) or (i > width - 1):
-            break
+    while 1 and i <= (width * val / val_max) - 1 and i <= width - 1:
         text += "*"
         i += 1
     if val > val_max:
-        text = text[:-1] + "+"
+        text = f"{text[:-1]}+"
     return text
 
 def _print_json_hist(vals, val_type, section_bucket=None):
@@ -120,10 +118,11 @@ def _print_json_hist(vals, val_type, section_bucket=None):
         if i != 0 and i <= max_nonzero_idx:
             index = index * 2
 
-            list_obj = {}
-            list_obj['interval-start'] = prev
-            list_obj['interval-end'] = int(index) - 1
-            list_obj['count'] = int(vals[i])
+            list_obj = {
+                'interval-start': prev,
+                'interval-end': int(index) - 1,
+                'count': int(vals[i]),
+            }
 
             hist_list.append(list_obj)
 
@@ -181,13 +180,13 @@ def _print_linear_hist(vals, val_type, strip_leading_zero):
         if v > 0: idx_max = i
         if v > val_max: val_max = v
 
-    header = "     %-13s : count     distribution"
     body = "        %-10d : %-8d |%-*s|"
     stars = stars_max
 
     if idx_max >= 0:
+        header = "     %-13s : count     distribution"
         print(header % val_type)
-    for i in range(0, idx_max + 1):
+    for i in range(idx_max + 1):
         val = vals[i]
 
         if strip_leading_zero:
@@ -244,8 +243,8 @@ def _get_event_class(event_map):
     while i < num_fields:
         field = lib.bpf_perf_event_field(event_map.bpf.module, event_map._name, i).decode()
         m = re.match(r"(.*)#(.*)", field)
-        field_name = m.group(1)
-        field_type = m.group(2)
+        field_name = m[1]
+        field_type = m[2]
 
         if re.match(r"enum .*", field_type):
             field_type = "enum"
@@ -253,7 +252,7 @@ def _get_event_class(event_map):
         m = array_type.match(field_type)
         try:
             if m:
-                fields.append((field_name, ct_mapping[m.group(1)] * int(m.group(2))))
+                fields.append((field_name, ct_mapping[m[1]] * int(m[2])))
             else:
                 fields.append((field_name, ct_mapping[field_type]))
         except KeyError:
@@ -305,11 +304,11 @@ def Table(bpf, map_id, map_fd, keytype, leaftype, name, **kwargs):
         t = MapInMapArray(bpf, map_id, map_fd, keytype, leaftype)
     elif ttype == BPF_MAP_TYPE_HASH_OF_MAPS:
         t = MapInMapHash(bpf, map_id, map_fd, keytype, leaftype)
-    elif ttype == BPF_MAP_TYPE_QUEUE or ttype == BPF_MAP_TYPE_STACK:
+    elif ttype in [BPF_MAP_TYPE_QUEUE, BPF_MAP_TYPE_STACK]:
         t = QueueStack(bpf, map_id, map_fd, leaftype)
     elif ttype == BPF_MAP_TYPE_RINGBUF:
         t = RingBuf(bpf, map_id, map_fd, keytype, leaftype, name)
-    if t == None:
+    if t is None:
         raise Exception("Unknown table type %d" % ttype)
     return t
 
@@ -375,7 +374,7 @@ class TableBase(MutableMapping):
         res = lib.bpf_update_elem(self.map_fd, ct.byref(key), ct.byref(leaf), 0)
         if res < 0:
             errstr = os.strerror(ct.get_errno())
-            raise Exception("Could not update table: %s" % errstr)
+            raise Exception(f"Could not update table: {errstr}")
 
     def __delitem__(self, key):
         res = lib.bpf_delete_elem(self.map_fd, ct.byref(key))
@@ -401,10 +400,10 @@ class TableBase(MutableMapping):
                 pass
 
     def items(self):
-        return [item for item in self.iteritems()]
+        return list(self.iteritems())
 
     def values(self):
-        return [value for value in self.itervalues()]
+        return list(self.itervalues())
 
     def clear(self):
         # default clear uses popitem, which can race with the bpf prog
@@ -469,10 +468,8 @@ class TableBase(MutableMapping):
                 if arr_len < 1 or arr_len > self.max_entries:
                     raise ValueError("Array's length is wrong")
 
-        if keys and values:
-            # check both length are equal
-            if len(keys) != len(values):
-                raise ValueError("keys array length != values array length")
+        if keys and values and len(keys) != len(values):
+            raise ValueError("keys array length != values array length")
 
         return ct.c_uint32(arr_len)
 
@@ -486,8 +483,7 @@ class TableBase(MutableMapping):
             been looked up.
         Notes: lookup batch on a keys subset is not supported by the kernel.
         """
-        for k, v in self._items_lookup_and_optionally_delete_batch(delete=False):
-            yield(k, v)
+        yield from self._items_lookup_and_optionally_delete_batch(delete=False)
         return
 
     def items_delete_batch(self, ct_keys=None):
@@ -513,8 +509,10 @@ class TableBase(MutableMapping):
                                        ct.byref(ct_cnt)
                                        )
             if (res != 0):
-                raise Exception("BPF_MAP_DELETE_BATCH has failed: %s"
-                                % os.strerror(ct.get_errno()))
+                raise Exception(
+                    f"BPF_MAP_DELETE_BATCH has failed: {os.strerror(ct.get_errno())}"
+                )
+
 
         else:
             for _ in self.items_lookup_and_delete_batch():
@@ -538,8 +536,9 @@ class TableBase(MutableMapping):
                                    ct.byref(ct_cnt)
                                    )
         if (res != 0):
-            raise Exception("BPF_MAP_UPDATE_BATCH has failed: %s"
-                            % os.strerror(ct.get_errno()))
+            raise Exception(
+                f"BPF_MAP_UPDATE_BATCH has failed: {os.strerror(ct.get_errno())}"
+            )
 
     def items_lookup_and_delete_batch(self):
         """Look up and delete all the key-value pairs in the map.
@@ -552,8 +551,7 @@ class TableBase(MutableMapping):
         Notes: lookup and delete batch on a keys subset is not supported by
         the kernel.
         """
-        for k, v in self._items_lookup_and_optionally_delete_batch(delete=True):
-            yield(k, v)
+        yield from self._items_lookup_and_optionally_delete_batch(delete=True)
         return
 
     def _items_lookup_and_optionally_delete_batch(self, delete=True):
@@ -594,8 +592,7 @@ class TableBase(MutableMapping):
             errcode = ct.get_errno()
             total += ct_cnt.value
             if (res != 0 and errcode != errno.ENOENT):
-                raise Exception("%s has failed: %s" % (bpf_cmd,
-                                                       os.strerror(errcode)))
+                raise Exception(f"{bpf_cmd} has failed: {os.strerror(errcode)}")
 
             if res != 0:
                 break  # success
@@ -608,7 +605,7 @@ class TableBase(MutableMapping):
                 # puts too many elements in one bucket.
                 break
 
-        for i in range(0, total):
+        for i in range(total):
             yield (ct_keys[i], ct_values[i])
 
     def zero(self):
@@ -803,9 +800,7 @@ class HashTable(TableBase):
         super(HashTable, self).__init__(*args, **kwargs)
 
     def __len__(self):
-        i = 0
-        for k in self: i += 1
-        return i
+        return sum(1 for _ in self)
 
 class LruHash(HashTable):
     def __init__(self, *args, **kwargs):
@@ -956,7 +951,7 @@ class PerfEventArray(ArrayBase):
         the BPF program can be deduced via this function. This avoids
         redundant definitions in Python.
         """
-        if self._event_class == None:
+        if self._event_class is None:
             self._event_class = _get_event_class(self)
         return ct.cast(data, ct.POINTER(self._event_class)).contents
 
@@ -1038,14 +1033,12 @@ class PerCpuHash(HashTable):
         self.alignment = ct.sizeof(self.sLeaf) % 8
         if self.alignment == 0:
             self.Leaf = self.sLeaf * self.total_cpu
+        elif self.sLeaf == ct.c_uint:
+            self.Leaf = ct.c_uint64 * self.total_cpu
+        elif self.sLeaf == ct.c_int:
+            self.Leaf = ct.c_int64 * self.total_cpu
         else:
-            # Currently Float, Char, un-aligned structs are not supported
-            if self.sLeaf == ct.c_uint:
-                self.Leaf = ct.c_uint64 * self.total_cpu
-            elif self.sLeaf == ct.c_int:
-                self.Leaf = ct.c_int64 * self.total_cpu
-            else:
-                raise IndexError("Leaf must be aligned to 8 bytes")
+            raise IndexError("Leaf must be aligned to 8 bytes")
 
     def getvalue(self, key):
         result = super(PerCpuHash, self).__getitem__(key)
@@ -1053,7 +1046,7 @@ class PerCpuHash(HashTable):
             ret = result
         else:
             ret = (self.sLeaf * self.total_cpu)()
-            for i in range(0, self.total_cpu):
+            for i in range(self.total_cpu):
                 ret[i] = result[i]
         return ret
 
@@ -1094,14 +1087,12 @@ class PerCpuArray(ArrayBase):
         self.alignment = ct.sizeof(self.sLeaf) % 8
         if self.alignment == 0:
             self.Leaf = self.sLeaf * self.total_cpu
+        elif self.sLeaf == ct.c_uint:
+            self.Leaf = ct.c_uint64 * self.total_cpu
+        elif self.sLeaf == ct.c_int:
+            self.Leaf = ct.c_int64 * self.total_cpu
         else:
-            # Currently Float, Char, un-aligned structs are not supported
-            if self.sLeaf == ct.c_uint:
-                self.Leaf = ct.c_uint64 * self.total_cpu
-            elif self.sLeaf == ct.c_int:
-                self.Leaf = ct.c_int64 * self.total_cpu
-            else:
-                raise IndexError("Leaf must be aligned to 8 bytes")
+            raise IndexError("Leaf must be aligned to 8 bytes")
 
     def getvalue(self, key):
         result = super(PerCpuArray, self).__getitem__(key)
@@ -1109,7 +1100,7 @@ class PerCpuArray(ArrayBase):
             ret = result
         else:
             ret = (self.sLeaf * self.total_cpu)()
-            for i in range(0, self.total_cpu):
+            for i in range(self.total_cpu):
                 ret[i] = result[i]
         return ret
 
@@ -1177,12 +1168,14 @@ class StackTrace(TableBase):
                 raise StopIteration()
 
             if self.flags & StackTrace.BPF_F_STACK_BUILD_ID:
-              addr = self.stack.trace[self.n]
-              if addr.status == StackTrace.BPF_STACK_BUILD_ID_IP or \
-                 addr.status == StackTrace.BPF_STACK_BUILD_ID_EMPTY:
-                  raise StopIteration()
+                addr = self.stack.trace[self.n]
+                if addr.status in [
+                    StackTrace.BPF_STACK_BUILD_ID_IP,
+                    StackTrace.BPF_STACK_BUILD_ID_EMPTY,
+                ]:
+                    raise StopIteration()
             else:
-              addr = self.stack.ip[self.n]
+                addr = self.stack.ip[self.n]
 
             if addr == 0 :
                 raise StopIteration()
@@ -1193,9 +1186,7 @@ class StackTrace(TableBase):
         return StackTrace.StackWalker(self[self.Key(stack_id)], self.flags, resolve)
 
     def __len__(self):
-        i = 0
-        for k in self: i += 1
-        return i
+        return sum(1 for _ in self)
 
     def clear(self):
         pass
@@ -1243,7 +1234,7 @@ class RingBuf(TableBase):
         the BPF program can be deduced via this function. This avoids
         redundant definitions in Python.
         """
-        if self._event_class == None:
+        if self._event_class is None:
             self._event_class = _get_event_class(self)
         return ct.cast(data, ct.POINTER(self._event_class)).contents
 
@@ -1311,7 +1302,7 @@ class QueueStack:
         res = lib.bpf_update_elem(self.map_fd, None, ct.byref(leaf), flags)
         if res < 0:
             errstr = os.strerror(ct.get_errno())
-            raise Exception("Could not push to table: %s" % errstr)
+            raise Exception(f"Could not push to table: {errstr}")
 
     def pop(self):
         leaf = self.Leaf()
@@ -1338,4 +1329,4 @@ class QueueStack:
                 return
 
     def values(self):
-        return [value for value in self.itervalues()]
+        return list(self.itervalues())

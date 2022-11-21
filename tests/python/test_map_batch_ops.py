@@ -22,7 +22,7 @@ class TestMapBatch(TestCase):
     def fill_hashmap(self):
         b = BPF(text=b"""BPF_HASH(map, int, int, %d);""" % self.MAPSIZE)
         hmap = b[b"map"]
-        for i in range(0, self.MAPSIZE):
+        for i in range(self.MAPSIZE):
             hmap[ct.c_int(i)] = ct.c_int(i)
         return hmap
 

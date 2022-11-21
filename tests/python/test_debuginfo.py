@@ -23,7 +23,7 @@ class TestKSyms(TestCase):
                 # containing the module name may not exist for all
                 # symbols.
                 (addr, t, name) = line.strip().split()[:3]
-                if t == b"t" or t == b"T":
+                if t in [b"t", b"T"]:
                     if not address:
                         address = addr
                     if addr == address:
@@ -78,7 +78,6 @@ class Harness(TestCase):
         addr = self.syms.resolve_name(os.path.join(script_dir, b'dummy'),
                                       self.mangled_name)
         self.assertEqual(addr, self.addr)
-        pass
 
 class TestDebuglink(Harness):
     def build_command(self):

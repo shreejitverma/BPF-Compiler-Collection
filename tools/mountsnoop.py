@@ -322,7 +322,7 @@ def decode_umount_flags(flags):
 
 def decode_errno(retval):
     try:
-        return '-' + errno.errorcode[-retval]
+        return f'-{errno.errorcode[-retval]}'
     except KeyError:
         return str(retval)
 
@@ -344,10 +344,7 @@ def escape_character(c):
     try:
         return _escape_chars[c]
     except KeyError:
-        if 0x20 <= c <= 0x7e:
-            return chr(c)
-        else:
-            return '\\x{:02x}'.format(c)
+        return chr(c) if 0x20 <= c <= 0x7e else '\\x{:02x}'.format(c)
 
 
 if sys.version_info.major < 3:
@@ -393,8 +390,10 @@ def print_event(mounts, umounts, parent, cpu, data, size):
             }
         elif event.type == EventType.EVENT_UMOUNT_TARGET:
             umounts[event.pid]['target'] = event.union.str
-        elif (event.type == EventType.EVENT_MOUNT_RET or
-              event.type == EventType.EVENT_UMOUNT_RET):
+        elif event.type in [
+            EventType.EVENT_MOUNT_RET,
+            EventType.EVENT_UMOUNT_RET,
+        ]:
             if event.type == EventType.EVENT_MOUNT_RET:
                 syscall = mounts.pop(event.pid)
                 call = ('mount({source}, {target}, {type}, {flags}, {data}) ' +

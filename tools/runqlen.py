@@ -179,13 +179,13 @@ else:
 
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 num_cpus = len(utils.get_online_cpus())
 
 # initialize BPF & perf_events
-b = BPF(text=bpf_text, cflags=['-DMAX_CPUS=%s' % str(num_cpus)])
+b = BPF(text=bpf_text, cflags=[f'-DMAX_CPUS={num_cpus}'])
 b.attach_perf_event(ev_type=PerfType.SOFTWARE,
     ev_config=PerfSWConfig.CPU_CLOCK, fn_name="do_perf_event",
     sample_period=0, sample_freq=frequency)
@@ -195,7 +195,7 @@ print("Sampling run queue length... Hit Ctrl-C to end.")
 # output
 exiting = 0 if args.interval else 1
 dist = b.get_table("dist")
-while (1):
+while 1:
     try:
         sleep(int(args.interval))
     except KeyboardInterrupt:
@@ -214,7 +214,7 @@ while (1):
             for k, v in dist.items():
                 if k.cpu > cpumax:
                     cpumax = k.cpu
-            for c in range(0, cpumax + 1):
+            for c in range(cpumax + 1):
                 idle[c] = 0
                 queued[c] = 0
             for k, v in dist.items():
@@ -222,12 +222,8 @@ while (1):
                     idle[k.cpu] += v.value
                 else:
                     queued[k.cpu] += v.value
-            for c in range(0, cpumax + 1):
-                samples = idle[c] + queued[c]
-                if samples:
-                    runqocc = float(queued[c]) / samples
-                else:
-                    runqocc = 0
+            for c in range(cpumax + 1):
+                runqocc = float(queued[c]) / samples if (samples := idle[c] + queued[c]) else 0
                 print("runqocc, CPU %-3d %6.2f%%" % (c, 100 * runqocc))
 
         else:
@@ -239,11 +235,7 @@ while (1):
                     idle += v.value
                 else:
                     queued += v.value
-            samples = idle + queued
-            if samples:
-                runqocc = float(queued) / samples
-            else:
-                runqocc = 0
+            runqocc = float(queued) / samples if (samples := idle + queued) else 0
             print("runqocc: %0.2f%%" % (100 * runqocc))
 
     else:

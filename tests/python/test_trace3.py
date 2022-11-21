@@ -10,9 +10,7 @@ from unittest import main, TestCase
 from utils import mayFail
 
 arg1 = sys.argv.pop(1).encode()
-arg2 = b""
-if len(sys.argv) > 1:
-  arg2 = sys.argv.pop(1)
+arg2 = sys.argv.pop(1) if len(sys.argv) > 1 else b""
 
 
 class TestBlkRequest(TestCase):
@@ -28,18 +26,18 @@ class TestBlkRequest(TestCase):
                 fn_name=b"probe_blk_update_request")
 
     def test_blk1(self):
-        import subprocess
-        import os
+      import subprocess
+      import os
         # use /opt instead of /tmp so that it hits a real disk
-        for i in range(0, 2):
-            subprocess.call(["dd", "if=/dev/zero", "of=/opt/trace3.txt",
-                             "count=1024", "bs=4096"])
-            subprocess.call(["sync"])
-        os.unlink("/opt/trace3.txt")
-        for key, leaf in self.latency.items():
-            print("latency %u:" % key.value, "count %u" % leaf.value)
-        sys.stdout.flush()
-        self.assertEqual(len(list(self.latency.keys())), len(self.latency))
+      for _ in range(2):
+        subprocess.call(["dd", "if=/dev/zero", "of=/opt/trace3.txt",
+                         "count=1024", "bs=4096"])
+        subprocess.call(["sync"])
+      os.unlink("/opt/trace3.txt")
+      for key, leaf in self.latency.items():
+          print("latency %u:" % key.value, "count %u" % leaf.value)
+      sys.stdout.flush()
+      self.assertEqual(len(list(self.latency.keys())), len(self.latency))
 
 if __name__ == "__main__":
     main()

@@ -18,7 +18,7 @@ class TestKprobeCnt(TestCase):
 
     def test_attach1(self):
         actual_cnt = 0
-        with open("%s/available_filter_functions" % TRACEFS, "rb") as f:
+        with open(f"{TRACEFS}/available_filter_functions", "rb") as f:
             for line in f:
                 if line.startswith(b"vfs_"):
                     actual_cnt += 1

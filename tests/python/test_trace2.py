@@ -35,7 +35,7 @@ class TestTracingEvent(TestCase):
                         fn_name=b"count_sched")
 
     def test_sched1(self):
-        for i in range(0, 100):
+        for _ in range(100):
             sleep(0.01)
         for key, leaf in self.stats.items():
             print("ptr %x:" % key.ptr, "stat1 (%d %d)" % (leaf.stat1[1], leaf.stat1[0]))

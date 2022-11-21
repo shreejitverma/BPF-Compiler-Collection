@@ -303,7 +303,7 @@ def print_event(cpu, data, size):
     if args.name and bytes(args.name) not in event.comm:
         return
 
-    for i in range(0, cnt):
+    for i in range(cnt):
         global initial_ts
 
         if not initial_ts:

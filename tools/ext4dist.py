@@ -160,7 +160,7 @@ else:
             (addr, size, name) = line.rstrip().split(" ", 2)
             name = name.split("\t")[0]
             if name == "ext4_file_operations":
-                ext4_file_ops_addr = "0x" + addr
+                ext4_file_ops_addr = f"0x{addr}"
                 break
         if ext4_file_ops_addr == '':
             print("ERROR: no ext4_file_operations in /proc/kallsyms. Exiting.")
@@ -190,13 +190,13 @@ int trace_read_entry(struct pt_regs *ctx, struct kiocb *iocb)
 bpf_text = bpf_text.replace('EXT4_TRACE_READ_CODE', ext4_trace_read_code)
 bpf_text = bpf_text.replace('FACTOR', str(factor))
 if args.pid:
-    bpf_text = bpf_text.replace('FILTER_PID', 'pid != %s' % pid)
+    bpf_text = bpf_text.replace('FILTER_PID', f'pid != {pid}')
 else:
     bpf_text = bpf_text.replace('FILTER_PID', '0')
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # load BPF program
 b = BPF(text=bpf_text)

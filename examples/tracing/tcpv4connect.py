@@ -78,7 +78,7 @@ print("%-6s %-12s %-16s %-16s %-4s" % ("PID", "COMM", "SADDR", "DADDR",
 
 def inet_ntoa(addr):
 	dq = b''
-	for i in range(0, 4):
+	for i in range(4):
 		dq = dq + str(addr & 0xff).encode()
 		if (i != 3):
 			dq = dq + b'.'

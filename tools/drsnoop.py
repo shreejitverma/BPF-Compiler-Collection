@@ -72,10 +72,10 @@ with open(kallsyms) as syms:
         (addr, size, name) = line.rstrip().split(" ", 2)
         name = name.split("\t")[0]
         if name == "vm_stat":
-            vm_stat_addr = "0x" + addr
+            vm_stat_addr = f"0x{addr}"
             break
         if name == "vm_zone_stat":
-            vm_stat_addr = "0x" + addr
+            vm_stat_addr = f"0x{addr}"
             break
     if vm_stat_addr == '':
         print("ERROR: no vm_stat or vm_zone_stat in /proc/kallsyms. Exiting.")
@@ -177,8 +177,8 @@ else:
     bpf_text = bpf_text.replace('UID_FILTER', '')
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # initialize BPF
 b = BPF(text=bpf_text)

@@ -30,7 +30,7 @@ parser.add_argument("-s", "--shared", nargs="?",
               Default is /lib/libreadline.so")
 args = parser.parse_args()
 
-name = args.shared if args.shared else "/bin/bash"
+name = args.shared or "/bin/bash"
 
 # load BPF program
 bpf_text = """

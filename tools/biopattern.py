@@ -116,7 +116,7 @@ while True:
         sleep(int(args.interval))
     except KeyboardInterrupt:
         exiting = 1
-    
+
     for k, v in counters.items():
         total = v.random + v.sequential
         if total == 0:

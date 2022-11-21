@@ -106,8 +106,8 @@ else:
     bpf_text = bpf_text.replace('FILTER', '')
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # initialize BPF
 b = BPF(text=bpf_text)

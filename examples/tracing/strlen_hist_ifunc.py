@@ -82,7 +82,7 @@ def find_impl_func_offset(ifunc_symbol):
     b.attach_uretprobe(name=NAME, sym=SYMBOL, fn_name=b"submit_impl_func_addr")
     b['impl_func_addr'].open_perf_buffer(set_impl_func_addr)
 
-    print('wait for the first {} call'.format(SYMBOL))
+    print(f'wait for the first {SYMBOL} call')
     while True:
         try:
             if resolv_func_addr and impl_func_addr:
@@ -93,7 +93,7 @@ def find_impl_func_offset(ifunc_symbol):
             b.perf_buffer_poll()
         except KeyboardInterrupt:
             exit()
-    print('IFUNC resolution of {} is performed'.format(SYMBOL))
+    print(f'IFUNC resolution of {SYMBOL} is performed')
     print('resolver function address: {:#x}'.format(resolv_func_addr))
     print('resolver function offset: {:#x}'.format(ifunc_symbol.offset))
     print('function implementation address: {:#x}'.format(impl_func_addr))
@@ -105,7 +105,7 @@ def find_impl_func_offset(ifunc_symbol):
 def main():
     ifunc_symbol = get_indirect_function_sym(NAME, SYMBOL)
     if not ifunc_symbol:
-        sys.stderr.write('{} is not an indirect function. abort!\n'.format(SYMBOL))
+        sys.stderr.write(f'{SYMBOL} is not an indirect function. abort!\n')
         exit(1)
 
     impl_func_offset = find_impl_func_offset(ifunc_symbol)
@@ -119,7 +119,7 @@ def main():
         while True:
             time.sleep(1)
             print('%-8s\n' % time.strftime('%H:%M:%S'), end='')
-            dist.print_log2_hist(SYMBOL + ' return:')
+            dist.print_log2_hist(f'{SYMBOL} return:')
             dist.clear()
 
     except KeyboardInterrupt:

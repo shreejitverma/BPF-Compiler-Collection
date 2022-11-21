@@ -167,11 +167,9 @@ if __name__ == "__main__":
     # Parse arguments
     args = parser.parse_args()
 
-    pid_filter = ""
     netns_filter = ""
 
-    if args.pid:
-        pid_filter = "if (evt.pid != %d) return 0;" % args.pid
+    pid_filter = "if (evt.pid != %d) return 0;" % args.pid if args.pid else ""
     if args.netns:
         netns_filter = "if (evt.netns != %d) return 0;" % args.netns
 

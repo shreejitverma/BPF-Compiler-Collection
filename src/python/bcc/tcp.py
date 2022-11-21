@@ -13,19 +13,20 @@
 # limitations under the License.
 
 # from include/net/tcp_states.h:
-tcpstate = {}
-tcpstate[1] = 'ESTABLISHED'
-tcpstate[2] = 'SYN_SENT'
-tcpstate[3] = 'SYN_RECV'
-tcpstate[4] = 'FIN_WAIT1'
-tcpstate[5] = 'FIN_WAIT2'
-tcpstate[6] = 'TIME_WAIT'
-tcpstate[7] = 'CLOSE'
-tcpstate[8] = 'CLOSE_WAIT'
-tcpstate[9] = 'LAST_ACK'
-tcpstate[10] = 'LISTEN'
-tcpstate[11] = 'CLOSING'
-tcpstate[12] = 'NEW_SYN_RECV'
+tcpstate = {
+    1: 'ESTABLISHED',
+    2: 'SYN_SENT',
+    3: 'SYN_RECV',
+    4: 'FIN_WAIT1',
+    5: 'FIN_WAIT2',
+    6: 'TIME_WAIT',
+    7: 'CLOSE',
+    8: 'CLOSE_WAIT',
+    9: 'LAST_ACK',
+    10: 'LISTEN',
+    11: 'CLOSING',
+    12: 'NEW_SYN_RECV',
+}
 
 # from include/net/tcp.h:
 TCPHDR_FIN = 0x01

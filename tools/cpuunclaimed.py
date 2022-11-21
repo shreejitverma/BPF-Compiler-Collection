@@ -224,8 +224,8 @@ else:
 # code substitutions
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # initialize BPF & perf_events
 b = BPF(text=bpf_text)
@@ -238,10 +238,10 @@ if args.csv:
     if args.timestamp:
         print("TIME", end=",")
     print("TIMESTAMP_ns", end=",")
-    print(",".join("CPU" + str(c) for c in range(ncpu)), end="")
+    print(",".join(f"CPU{str(c)}" for c in range(ncpu)), end="")
     if args.fullcsv:
         print(",", end="")
-        print(",".join("OFFSET_ns_CPU" + str(c) for c in range(ncpu)), end="")
+        print(",".join(f"OFFSET_ns_CPU{str(c)}" for c in range(ncpu)), end="")
     print()
 else:
     print(("Sampling run queues... Output every %s seconds. " +
@@ -254,9 +254,7 @@ last = 0
 # process event
 def print_event(cpu, data, size):
     event = b["events"].event(data)
-    samples[event.ts] = {}
-    samples[event.ts]['cpu'] = event.cpu
-    samples[event.ts]['len'] = event.len
+    samples[event.ts] = {'cpu': event.cpu, 'len': event.len}
 
 exiting = 0 if args.interval else 1
 slept = float(0)
@@ -338,10 +336,7 @@ while 1:
                 # calculate the number of threads that could have run as the
                 # minimum of idle and queued
                 if g_idle > 0 and g_queued > 0:
-                    if g_queued > g_idle:
-                        i = g_idle
-                    else:
-                        i = g_queued
+                    i = g_idle if g_queued > g_idle else g_queued
                     positive += i
                 running += g_running
                 idle += g_idle

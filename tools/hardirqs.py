@@ -65,35 +65,6 @@ else:
     label = "usecs"
 debug = 0
 
-# define BPF program
-bpf_text = """
-#include <uapi/linux/ptrace.h>
-#include <linux/irq.h>
-#include <linux/irqdesc.h>
-#include <linux/interrupt.h>
-
-// Add cpu_id as part of key for irq entry event to handle the case which irq
-// is triggered while idle thread(swapper/x, tid=0) for each cpu core.
-// Please see more detail at pull request #2804, #3733.
-typedef struct entry_key {
-    u32 tid;
-    u32 cpu_id;
-} entry_key_t;
-
-typedef struct irq_key {
-    char name[32];
-    u64 slot;
-} irq_key_t;
-
-typedef struct irq_name {
-    char name[32];
-} irq_name_t;
-
-BPF_HASH(start, entry_key_t);
-BPF_HASH(irqnames, entry_key_t, irq_name_t);
-BPF_HISTOGRAM(dist, irq_key_t);
-"""
-
 bpf_text_count = """
 TRACEPOINT_PROBE(irq, irq_handler_entry)
 {
@@ -194,10 +165,35 @@ TRACEPOINT_PROBE(irq, irq_handler_exit)
 }
 """
 
-if args.count:
-    bpf_text += bpf_text_count
-else:
-    bpf_text += bpf_text_time
+bpf_text = """
+#include <uapi/linux/ptrace.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
+#include <linux/interrupt.h>
+
+// Add cpu_id as part of key for irq entry event to handle the case which irq
+// is triggered while idle thread(swapper/x, tid=0) for each cpu core.
+// Please see more detail at pull request #2804, #3733.
+typedef struct entry_key {
+    u32 tid;
+    u32 cpu_id;
+} entry_key_t;
+
+typedef struct irq_key {
+    char name[32];
+    u64 slot;
+} irq_key_t;
+
+typedef struct irq_name {
+    char name[32];
+} irq_name_t;
+
+BPF_HASH(start, entry_key_t);
+BPF_HASH(irqnames, entry_key_t, irq_name_t);
+BPF_HISTOGRAM(dist, irq_key_t);
+""" + (
+    bpf_text_count if args.count else bpf_text_time
+)
 
 # code substitutions
 if args.dist:
@@ -217,8 +213,8 @@ else:
     bpf_text = bpf_text.replace('FILTER_CPU', '')
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # load BPF program
 b = BPF(text=bpf_text)
@@ -231,7 +227,7 @@ else:
 # output
 exiting = 0 if args.interval else 1
 dist = b.get_table("dist")
-while (1):
+while 1:
     try:
         sleep(int(args.interval))
     except KeyboardInterrupt:
@@ -244,7 +240,7 @@ while (1):
     if args.dist:
         dist.print_log2_hist(label, "hardirq", section_print_fn=bytes.decode)
     else:
-        print("%-26s %11s" % ("HARDIRQ", "TOTAL_" + label))
+        print("%-26s %11s" % ("HARDIRQ", f"TOTAL_{label}"))
         for k, v in sorted(dist.items(), key=lambda dist: dist[1].value):
             print("%-26s %11d" % (k.name.decode('utf-8', 'replace'), v.value / factor))
     dist.clear()

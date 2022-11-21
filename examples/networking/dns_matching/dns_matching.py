@@ -12,13 +12,13 @@ import argparse
 
 
 def encode_dns(name):
-  if len(name) + 1 > 255:
+  if len(name) > 254:
     raise Exception("DNS Name too long.")
   b = bytearray()
   for element in name.split('.'):
     sublen = len(element)
     if sublen > 63:
-      raise ValueError('DNS label %s is too long' % element)
+      raise ValueError(f'DNS label {element} is too long')
     b.append(sublen)
     b.extend(element.encode('ascii'))
   b.append(0)  # Add 0-len octet label for the root server

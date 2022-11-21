@@ -67,7 +67,7 @@ if not args.interval:
     args.interval = 99999999
 
 def bail(error):
-    print("Error: " + error)
+    print(f"Error: {error}")
     exit(1)
 
 
@@ -136,8 +136,8 @@ else:
 
 if args.verbose or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # signal handler
 def signal_ignore(signal, frame):

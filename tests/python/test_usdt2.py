@@ -80,9 +80,20 @@ int do_trace3(struct pt_regs *ctx) {
         # Compile and run the application
         self.ftemp = NamedTemporaryFile(delete=False)
         self.ftemp.close()
-        comp = Popen(["gcc", "-I", "%s/include" % os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),
-                      "-x", "c++", "-o", self.ftemp.name, "-"],
-                     stdin=PIPE)
+        comp = Popen(
+            [
+                "gcc",
+                "-I",
+                f"{os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))}/include",
+                "-x",
+                "c++",
+                "-o",
+                self.ftemp.name,
+                "-",
+            ],
+            stdin=PIPE,
+        )
+
         comp.stdin.write(app_text)
         comp.stdin.close()
         self.assertEqual(comp.wait(), 0)
@@ -117,10 +128,7 @@ int do_trace3(struct pt_regs *ctx) {
 
         def check_event_val(data, event_state, expected_val):
             result = ct.cast(data, ct.POINTER(ct.c_int)).contents
-            if result.value == expected_val:
-                if (event_state == 0 or event_state == 1):
-                    return 1
-            return 2
+            return 1 if result.value == expected_val and event_state in [0, 1] else 2
 
         def print_event1(cpu, data, size):
             self.evt_st_1 = check_event_val(data, self.evt_st_1, 1)

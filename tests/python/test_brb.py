@@ -119,26 +119,20 @@ class TestBPFSocket(TestCase):
         prog_id_br1 = 2
         prog_id_br2 = 3
 
-        # initial port id and table pointers
-        curr_pem_pid = 0
-        curr_br1_pid = 0
-        curr_br2_pid = 0
-
         # configure jump table
         self.jump[c_uint(prog_id_pem)] = c_uint(self.pem_fn.fd)
         self.jump[c_uint(prog_id_br1)] = c_uint(self.br1_fn.fd)
         self.jump[c_uint(prog_id_br2)] = c_uint(self.br2_fn.fd)
 
-        # connect pem and br1
-        curr_pem_pid = curr_pem_pid + 1
-        curr_br1_pid = curr_br1_pid + 1
+        curr_pem_pid = 0 + 1
+        curr_br1_pid = 0 + 1
         self.connect_ports(prog_id_pem, prog_id_br1, curr_pem_pid, curr_br1_pid,
                       self.br1_dest, self.br1_mac,
                       self.ns1_eth_out.index, self.vm1_mac, self.vm1_ip)
 
         # connect pem and br2
-        curr_pem_pid = curr_pem_pid + 1
-        curr_br2_pid = curr_br2_pid + 1
+        curr_pem_pid += 1
+        curr_br2_pid = 0 + 1
         self.connect_ports(prog_id_pem, prog_id_br2, curr_pem_pid, curr_br2_pid,
                       self.br2_dest, self.br2_mac,
                       self.ns2_eth_out.index, self.vm2_mac, self.vm2_ip)
@@ -160,26 +154,48 @@ class TestBPFSocket(TestCase):
 
             # set up the topology
             self.set_default_const()
-            (ns1_ipdb, self.ns1_eth_out, _) = sim._create_ns(self.ns1, ipaddr=self.vm1_ip+'/24',
-                                                             fn=self.pem_fn, action='drop',
-                                                             disable_ipv6=True)
-            (ns2_ipdb, self.ns2_eth_out, _) = sim._create_ns(self.ns2, ipaddr=self.vm2_ip+'/24',
-                                                             fn=self.pem_fn, action='drop',
-                                                             disable_ipv6=True)
+            (ns1_ipdb, self.ns1_eth_out, _) = sim._create_ns(
+                self.ns1,
+                ipaddr=f'{self.vm1_ip}/24',
+                fn=self.pem_fn,
+                action='drop',
+                disable_ipv6=True,
+            )
+
+            (ns2_ipdb, self.ns2_eth_out, _) = sim._create_ns(
+                self.ns2,
+                ipaddr=f'{self.vm2_ip}/24',
+                fn=self.pem_fn,
+                action='drop',
+                disable_ipv6=True,
+            )
+
             ns1_ipdb.routes.add({'dst': self.vm2_rtr_mask, 'gateway': self.vm1_rtr_ip}).commit()
             ns2_ipdb.routes.add({'dst': self.vm1_rtr_mask, 'gateway': self.vm2_rtr_ip}).commit()
             self.vm1_mac = ns1_ipdb.interfaces['eth0'].address
             self.vm2_mac = ns2_ipdb.interfaces['eth0'].address
 
-            (_, self.nsrtr_eth0_out, _) = sim._create_ns(self.ns_router, ipaddr=self.vm1_rtr_ip+'/24',
-                                                         fn=self.br1_fn, action='drop',
-                                                         disable_ipv6=True)
-            (rt_ipdb, self.nsrtr_eth1_out, _) = sim._ns_add_ifc(self.ns_router, "eth1", "ns_router2",
-                                                                ipaddr=self.vm2_rtr_ip+'/24',
-                                                                fn=self.br2_fn, action='drop',
-                                                                disable_ipv6=True)
+            (_, self.nsrtr_eth0_out, _) = sim._create_ns(
+                self.ns_router,
+                ipaddr=f'{self.vm1_rtr_ip}/24',
+                fn=self.br1_fn,
+                action='drop',
+                disable_ipv6=True,
+            )
+
+            (rt_ipdb, self.nsrtr_eth1_out, _) = sim._ns_add_ifc(
+                self.ns_router,
+                "eth1",
+                "ns_router2",
+                ipaddr=f'{self.vm2_rtr_ip}/24',
+                fn=self.br2_fn,
+                action='drop',
+                disable_ipv6=True,
+            )
+
             nsp = NSPopen(rt_ipdb.nl.netns, ["sysctl", "-w", "net.ipv4.ip_forward=1"])
-            nsp.wait(); nsp.release()
+            nsp.wait()
+            nsp.release()
 
             # configure maps
             self.config_maps()
@@ -188,14 +204,17 @@ class TestBPFSocket(TestCase):
             # from sending out arp request
             nsp = NSPopen(ns1_ipdb.nl.netns,
                           ["arping", "-w", "1", "-c", "1", "-I", "eth0", self.vm1_rtr_ip])
-            nsp.wait(); nsp.release()
+            nsp.wait()
+            nsp.release()
             nsp = NSPopen(ns2_ipdb.nl.netns,
                           ["arping", "-w", "1", "-c", "1", "-I", "eth0", self.vm2_rtr_ip])
-            nsp.wait(); nsp.release()
+            nsp.wait()
+            nsp.release()
 
             # ping
             nsp = NSPopen(ns1_ipdb.nl.netns, ["ping", self.vm2_ip, "-c", "2"])
-            nsp.wait(); nsp.release()
+            nsp.wait()
+            nsp.release()
             # pem_stats only counts pem->bridge traffic, each VM has 4: arping/arp request/2 icmp request
             # total 8 packets should be counted
             self.assertEqual(self.pem_stats[c_uint(0)].value, 8)
@@ -203,16 +222,23 @@ class TestBPFSocket(TestCase):
             nsp_server = NSPopenWithCheck(ns2_ipdb.nl.netns, ["iperf", "-s", "-xSC"])
             sleep(1)
             nsp = NSPopen(ns1_ipdb.nl.netns, ["iperf", "-c", self.vm2_ip, "-t", "1", "-xSC"])
-            nsp.wait(); nsp.release()
-            nsp_server.kill(); nsp_server.wait(); nsp_server.release()
+            nsp.wait()
+            nsp.release()
+            nsp_server.kill()
+            nsp_server.wait()
+            nsp_server.release()
 
             nsp_server = NSPopenWithCheck(ns2_ipdb.nl.netns, ["netserver", "-D"])
             sleep(1)
             nsp = NSPopenWithCheck(ns1_ipdb.nl.netns, ["netperf", "-l", "1", "-H", self.vm2_ip, "--", "-m", "65160"])
-            nsp.wait(); nsp.release()
+            nsp.wait()
+            nsp.release()
             nsp = NSPopen(ns1_ipdb.nl.netns, ["netperf", "-l", "1", "-H", self.vm2_ip, "-t", "TCP_RR"])
-            nsp.wait(); nsp.release()
-            nsp_server.kill(); nsp_server.wait(); nsp_server.release()
+            nsp.wait()
+            nsp.release()
+            nsp_server.kill()
+            nsp_server.wait()
+            nsp_server.release()
 
         finally:
             sim.release()

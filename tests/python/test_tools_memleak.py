@@ -37,9 +37,11 @@ def setUpModule():
     # Helper utilities "timeout" and "setbuf" are used to limit overall running
     # time, and to disable buffering.
     cfg.cmd_format = (
-        'stdbuf -o 0 -i 0 timeout -s KILL 10s ' + TOOLS_DIR +
-        'memleak.py -c "{} {{}} {}" -T 1 1 2'.format(exec_dst,
-                                                     cfg.leaking_amount))
+        f'stdbuf -o 0 -i 0 timeout -s KILL 10s {TOOLS_DIR}'
+        + 'memleak.py -c "{} {{}} {}" -T 1 1 2'.format(
+            exec_dst, cfg.leaking_amount
+        )
+    )
 
 
 @skipUnless(kernel_version_ge(4, 6), "requires kernel >= 4.6")

@@ -242,7 +242,7 @@ def handle_loop(stdscr, args):
                 # `pwd` throws a KeyError if the user cannot be found. This can
                 # happen e.g. when the process is running in a cgroup that has
                 # different users from the host.
-                username = 'UNKNOWN({})'.format(uid)
+                username = f'UNKNOWN({uid})'
 
             stdscr.addstr(
                 i + 2, 0,
@@ -271,8 +271,7 @@ def parse_arguments():
         help='Interval between probes.'
     )
 
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 args = parse_arguments()
 curses.wrapper(handle_loop, args)

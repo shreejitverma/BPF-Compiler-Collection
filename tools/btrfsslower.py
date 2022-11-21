@@ -63,7 +63,7 @@ csv = args.csv
 debug = 0
 if args.duration:
     args.duration = timedelta(seconds=int(args.duration))
-    
+
 # define BPF program
 bpf_text = """
 #include <uapi/linux/ptrace.h>
@@ -273,7 +273,7 @@ with open(kallsyms) as syms:
         (addr, name) = (a[0], a[2])
         name = name.split("\t")[0]
         if name == "btrfs_file_operations":
-            ops = "0x" + addr
+            ops = f"0x{addr}"
             break
     if ops == '':
         print("ERROR: no btrfs_file_operations in /proc/kallsyms. Exiting.")
@@ -283,16 +283,15 @@ with open(kallsyms) as syms:
 if min_ms == 0:
     bpf_text = bpf_text.replace('FILTER_US', '0')
 else:
-    bpf_text = bpf_text.replace('FILTER_US',
-        'delta_us <= %s' % str(min_ms * 1000))
+    bpf_text = bpf_text.replace('FILTER_US', f'delta_us <= {str(min_ms * 1000)}')
 if args.pid:
-    bpf_text = bpf_text.replace('FILTER_PID', 'pid != %s' % pid)
+    bpf_text = bpf_text.replace('FILTER_PID', f'pid != {pid}')
 else:
     bpf_text = bpf_text.replace('FILTER_PID', '0')
 if debug or args.ebpf:
     print(bpf_text)
-    if args.ebpf:
-        exit()
+if args.ebpf:
+    exit()
 
 # process event
 def print_event(cpu, data, size):

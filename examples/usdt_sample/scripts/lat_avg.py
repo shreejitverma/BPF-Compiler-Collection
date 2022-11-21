@@ -32,12 +32,10 @@ if this_maxsamplesize < 1:
     print("Invalid value for this_maxsamplesize, using 1.")
     this_maxsamplesize = 1
 
-debugLevel=0
-if args.verbose:
-    debugLevel=4
-
+debugLevel = 4 if args.verbose else 0
 # BPF program
-bpf_text_shared = "%s/bpf_text_shared.c" % os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+bpf_text_shared = f"{os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))}/bpf_text_shared.c"
+
 bpf_text = open(bpf_text_shared, 'r').read()
 bpf_text += """
 

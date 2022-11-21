@@ -38,7 +38,7 @@ class TestLru(unittest.TestCase):
         event_name = b.get_syscall_fnname(b"clone")
         b.attach_kprobe(event=event_name, fn_name=b"hello_world")
         ini = stats_map.Leaf()
-        for i in range(0, multiprocessing.cpu_count()):
+        for i in range(multiprocessing.cpu_count()):
             ini[i] = 0
         # First initialize with key 1
         stats_map[ stats_map.Key(1) ] = ini

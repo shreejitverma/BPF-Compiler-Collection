@@ -24,32 +24,27 @@ class Devname(Structure):
 def to_str(num):
     s = ""
     if num > 1000000:
-        return str(round(num/(1024*1024.0), 2)) + 'M'
+        return f'{str(round(num / (1024 * 1024.0), 2))}M'
     elif num > 1000:
-        return str(round(num/1024.0, 2)) + 'K'
+        return f'{str(round(num / 1024.0, 2))}K'
     else:
-        if isinstance(num, float):
-            return str(round(num, 2))
-        else:
-            return str(num)
+        return str(round(num, 2)) if isinstance(num, float) else str(num)
 
 def print_table(table, qnum):
     global print_interval
 
     # ---- print headers ----------------
     headers = [
-		"QueueID", 
-		"avg_size", 
-		"[0, 64)", 
-		"[64, 512)", 
-		"[512, 2K)", 
-		"[2K, 16K)",
-		"[16K, 64K)"
-	]
+    	"QueueID", 
+    	"avg_size", 
+    	"[0, 64)", 
+    	"[64, 512)", 
+    	"[512, 2K)", 
+    	"[2K, 16K)",
+    	"[16K, 64K)"
+    ]
     if args.throughput:
-        headers.append("BPS")
-        headers.append("PPS")
-
+        headers.extend(("BPS", "PPS"))
     print(" ", end="")
     for hd in headers:
         print( "%-11s" % hd, end="")
@@ -59,7 +54,6 @@ def print_table(table, qnum):
     qids=[]
     tBPS = 0
     tPPS = 0
-    tAVG = 0
     tGroup = [0,0,0,0,0]
     tpkt = 0
     tlen = 0
@@ -74,9 +68,7 @@ def print_table(table, qnum):
         tGroup[4] += v.size_64K
     tBPS = tlen / print_interval
     tPPS = tpkt / print_interval
-    if tpkt != 0:
-        tAVG = tlen / tpkt
-
+    tAVG = tlen / tpkt if tpkt != 0 else 0
     # -------- print table --------------
     for k in range(qnum):
         if k in qids:
@@ -93,7 +85,7 @@ def print_table(table, qnum):
             ]
         else:
             data = [k,0,0,0,0,0,0,0]
-        
+
         # print a line per queue
         avg = 0
         if data[2] != 0:
@@ -116,7 +108,7 @@ def print_table(table, qnum):
             ))
         else:
             print()
-    
+
     # ------- print total --------------
     print(" Total      %-11s%-11s%-11s%-11s%-11s%-11s" % (
         to_str(tAVG),
@@ -187,7 +179,7 @@ if print_interval == 0:
 ################ get number of queues #####################
 tx_num = 0
 rx_num = 0
-path = ROOT_PATH + "/" + dev_name + "/queues"
+path = f"{ROOT_PATH}/{dev_name}/queues"
 if not os.path.exists(path):
 	print ("Net interface", dev_name, "does not exits.")
 	exit()
